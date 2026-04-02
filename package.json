@@ -1,5 +1,5 @@
 {
-  "name": "grid-wars",
+  "name": "scratch-map",
   "module": "index.ts",
   "type": "module",
   "private": true,
@@ -8,5 +8,11 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "workspaces": [
+    "modules/*"
+  ],
+  "scripts": {
+    "dev": "bun --filter '*' dev"
   }
 }
