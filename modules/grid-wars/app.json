@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "grid-wars",
-    "slug": "grid-wars",
+    "slug": "gridwars",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -11,6 +11,9 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "permissions": [
+        "INTERNET"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -25,6 +28,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "@rnmapbox/maps",
       "expo-router",
       [
         "expo-splash-screen",
@@ -35,7 +39,15 @@
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      [
+        "react-native-maps",
+        {
+          "iosGoogleMapsApiKey": "AIzaSyCFKHPEVsqHyr97gydC4W7cKz-CZjpX7f0",
+          "androidGoogleMapsApiKey": "AIzaSyCFKHPEVsqHyr97gydC4W7cKz-CZjpX7f0"
+        }
+      ],
+      "@rnmapbox/maps"
     ],
     "experiments": {
       "typedRoutes": true,
