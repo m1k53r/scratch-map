@@ -1,41 +1,37 @@
+import { client } from "@/lib/api-client";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "expo-router";
-import { Text, View, StyleSheet, Button } from "react-native";
+import { View, StyleSheet, Button } from "react-native";
 
-export default function Index() {
+export default function SignIn() {
   const router = useRouter();
 
   const handleLogin = async () => {
     console.log("dupa");
     const { error } = await authClient.signIn.social({
       provider: "github",
-      callbackURL: "/dashboard",
+      callbackURL: "/app",
     });
 
-    console.log(error);
-
     if (error) {
-      console.log("oops");
+      console.error(error);
       return;
     }
 
-    console.log("yeah");
-    router.replace({ pathname: "/dashboard" });
+    router.replace({ pathname: "/(app)" });
   };
 
   return (
-    <>
+    <View style={styles.container}>
       <Button
         title="Test network"
         onPress={async () => {
-          console.log("pizda");
-          const result = await fetch("http://172.22.234.113:8080/health");
+          const result = await client.health.get();
           console.log(result);
         }}
       />
-      ;
-      <Button title="Login with Github" onPress={handleLogin} />;
-    </>
+      <Button title="Login with Github" onPress={handleLogin} />
+    </View>
   );
 }
 

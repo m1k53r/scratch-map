@@ -3,7 +3,7 @@ import { expoClient } from "@better-auth/expo/client";
 import * as SecureStore from "expo-secure-store";
 
 export const authClient = createAuthClient({
-  baseURL: "http://172.22.234.113:8080",
+  baseURL: process.env.EXPO_PUBLIC_BACKEND_URL,
   plugins: [
     expoClient({
       scheme: "gridwars",
