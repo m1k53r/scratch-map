@@ -1,4 +1,4 @@
-import { Context, Elysia } from "elysia";
+import { Elysia } from "elysia";
 import { openapi } from "@elysiajs/openapi";
 import { auth } from "./auth";
 import cors from "@elysiajs/cors";
@@ -22,7 +22,7 @@ const betterAuth = new Elysia({ name: "better-auth" })
     },
   });
 
-const app = new Elysia()
+export const app = new Elysia()
   .use(openapi({ path: "/" }))
   .use(betterAuth)
   .use(cors())

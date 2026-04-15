@@ -6,6 +6,7 @@ import { account, session, user, verification } from "./db/schema";
 
 export const auth = betterAuth({
   plugins: [expo()],
+  baseURL: process.env.BACKEND_URL,
   trustedOrigins: ["gridwars://", "exp://"],
   database: drizzleAdapter(db, {
     provider: "pg",

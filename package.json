@@ -10,11 +10,12 @@
     "typescript": "^5"
   },
   "workspaces": [
-    "modules/*"
+    "modules/*",
+    "packages/*"
   ],
   "scripts": {
     "start:api": "cd modules/api && bun run dev",
     "start:grid-wars": "cd modules/grid-wars && bunx expo start",
-    "dev": "bunx concurrently --names \"api,grid-wars\" --prefix-colors \"yellow,blue\" \"bun run start:api\" \"bun run android:grid-wars\""
+    "dev": "bunx concurrently --names \"api,grid-wars\" --prefix-colors \"yellow,blue\" \"bun run start:api\" \"bun run start:grid-wars\""
   }
 }
