@@ -27,6 +27,7 @@
     "expo-glass-effect": "~55.0.10",
     "expo-image": "~55.0.8",
     "expo-linking": "^55.0.13",
+    "expo-location": "~55.1.8",
     "expo-network": "^55.0.13",
     "expo-router": "~55.0.10",
     "expo-secure-store": "^55.0.13",

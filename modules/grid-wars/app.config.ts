@@ -11,7 +11,7 @@ export default {
       icon: "./assets/expo.icon",
     },
     android: {
-      permissions: ["INTERNET"],
+      permissions: ["INTERNET", "ACCESS_BACKGROUND_LOCATION"],
       adaptiveIcon: {
         backgroundColor: "#E6F4FE",
         foregroundImage: "./assets/images/android-icon-foreground.png",
@@ -41,8 +41,15 @@ export default {
       [
         "react-native-maps",
         {
-          iosGoogleMapsApiKey: process.env.GOOGLE_API_KEY,
-          androidGoogleMapsApiKey: process.env.GOOGLE_API_KEY,
+          iosGoogleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_API_KEY,
+          androidGoogleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_API_KEY,
+        },
+      ],
+      [
+        "expo-location",
+        {
+          locationAlwaysAndWhenInUsePermission:
+            "Allow $(PRODUCT_NAME) to use your location.",
         },
       ],
     ],
