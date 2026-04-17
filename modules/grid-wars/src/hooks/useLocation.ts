@@ -1,34 +1,74 @@
 import * as Location from "expo-location";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useResume } from "./useResume";
 
 export function useLocation() {
   const [location, setLocation] = useState<Location.LocationObject | null>(
     null,
   );
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [permissionStatus, setPermissionStatus] =
+    useState<Location.PermissionStatus | null>(null);
+  const subscription = useRef<Location.LocationSubscription | null>(null);
+
+  const getLocationPermissions = async () => {
+    let permissions = await Location.getForegroundPermissionsAsync();
+    console.log(permissions);
+
+    /// Only ask for permissions if it's either the first time or they weren't granted
+    /// but can ask again
+    if (
+      permissions.status === Location.PermissionStatus.UNDETERMINED ||
+      (permissions.status !== Location.PermissionStatus.GRANTED &&
+        permissions.canAskAgain)
+    ) {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      setPermissionStatus(status);
+    } else {
+      setPermissionStatus(permissions.status);
+    }
+  };
+
+  const startPolling = async () => {
+    if (subscription.current !== null) return;
+
+    console.log("Start polling");
+    subscription.current = await Location.watchPositionAsync(
+      {
+        accuracy: Location.LocationAccuracy.High,
+        distanceInterval: 1,
+        timeInterval: 500,
+      },
+      setLocation,
+    );
+  };
+
+  /// Get permissions after opening the app
+  useEffect(() => {
+    getLocationPermissions();
+  }, [getLocationPermissions]);
+
+  /// If permission status changed, try polling the location
+  useEffect(() => {
+    if (permissionStatus === "granted") {
+      startPolling();
+    } else {
+      subscription.current?.remove();
+      subscription.current = null;
+    }
+  }, [permissionStatus, startPolling]);
 
   useEffect(() => {
-    async function getCurrentLocation() {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-
-      console.log("test");
-
-      if (status !== "granted") {
-        setErrorMsg("Permission to access location was denied");
-      }
-
-      let location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
-      });
-      setLocation(location);
-      console.log(location);
-    }
-
-    getCurrentLocation();
+    return () => {
+      subscription.current?.remove();
+    };
   }, []);
+
+  /// Ask for permissions again if application went from background -> active,
+  /// because user might've just updated the permissions in app's settings
+  useResume(getLocationPermissions);
 
   return {
     location,
-    errorMsg,
+    permissionStatus,
   };
 }

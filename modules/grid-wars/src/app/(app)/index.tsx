@@ -1,13 +1,35 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  AppState,
+  Button,
+  Image,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import Mapbox from "@rnmapbox/maps";
 import { useLocation } from "@/hooks/useLocation";
 import { authClient } from "@/lib/auth-client";
+import { useResume } from "@/hooks/useResume";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
 export default function Index() {
   const { data } = authClient.useSession();
-  const { location } = useLocation();
+  const { location, permissionStatus } = useLocation();
+
+  if (permissionStatus === "denied") {
+    return (
+      <View style={styles.container}>
+        <Text>User didn't agree to share location</Text>
+        <Button
+          title="Go to settings"
+          onPress={() => Linking.openSettings()}
+        ></Button>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -35,6 +57,8 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   map: {
     width: "100%",
