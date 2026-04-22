@@ -7,7 +7,6 @@ export default function SignIn() {
   const router = useRouter();
 
   const handleLogin = async () => {
-    console.log("dupa");
     const { error } = await authClient.signIn.social({
       provider: "github",
       callbackURL: "/app",
@@ -23,13 +22,6 @@ export default function SignIn() {
 
   return (
     <View style={styles.container}>
-      <Button
-        title="Test network"
-        onPress={async () => {
-          const result = await client.health.get();
-          console.log(result);
-        }}
-      />
       <Button title="Login with Github" onPress={handleLogin} />
     </View>
   );

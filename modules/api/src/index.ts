@@ -29,9 +29,6 @@ export const app = new Elysia()
   .get("/me", ({ user }) => user, {
     auth: true,
   })
-  .get("/health", () => {
-    console.log("working");
-  })
   .listen(8080);
 
 console.log(
