@@ -10,7 +10,8 @@
     "typescript": "^5"
   },
   "workspaces": [
-    "modules/*"
+    "modules/*",
+    "packages/*"
   ],
   "scripts": {
     "start:api": "cd modules/api && bun run dev",

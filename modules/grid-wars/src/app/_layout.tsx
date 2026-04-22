@@ -1,16 +1,29 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import React from 'react';
-import { useColorScheme } from 'react-native';
+import { ReactQueryClient } from "@/lib/react-query-client";
+import { Stack } from "expo-router";
+import { SplashScreenController } from "../splash";
+import { authClient } from "@/lib/auth-client";
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function Root() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <ReactQueryClient>
+      <SplashScreenController />
+      <RootNavigator />
+    </ReactQueryClient>
+  );
+}
+
+function RootNavigator() {
+  const { data } = authClient.useSession();
+
+  return (
+    <Stack>
+      <Stack.Protected guard={!!data}>
+        <Stack.Screen name="(app)" options={{ headerShown: false }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!data}>
+        <Stack.Screen name="sign-in" />
+      </Stack.Protected>
+    </Stack>
   );
 }
