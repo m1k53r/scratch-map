@@ -20,7 +20,6 @@ export function useResume(onResume: () => void) {
       }
 
       appState.current = nextAppState;
-      console.log(appState.current);
     });
 
     return () => subscription.remove();

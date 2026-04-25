@@ -12,7 +12,6 @@ export function useLocation() {
 
   const getLocationPermissions = async () => {
     let permissions = await Location.getForegroundPermissionsAsync();
-    console.log(permissions);
 
     /// Only ask for permissions if it's either the first time or they weren't granted
     /// but can ask again
@@ -31,7 +30,6 @@ export function useLocation() {
   const startPolling = async () => {
     if (subscription.current !== null) return;
 
-    console.log("Start polling");
     subscription.current = await Location.watchPositionAsync(
       {
         accuracy: Location.LocationAccuracy.High,
