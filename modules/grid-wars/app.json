@@ -40,6 +40,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7ebeb380-b908-4262-8614-b79cdeb69989",
+        "owner": "mikisheeshs-organization"
+      }
     }
   }
 }
