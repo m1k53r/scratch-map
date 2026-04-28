@@ -1,17 +1,18 @@
-import {
-  AppState,
-  Button,
-  Image,
-  Linking,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { AppState, Image, Linking, Pressable, StyleSheet } from "react-native";
 import Mapbox from "@rnmapbox/maps";
 import { useLocation } from "@/hooks/useLocation";
 import { authClient } from "@/lib/auth-client";
 import { useResume } from "@/hooks/useResume";
+import {
+  createTamagui,
+  View,
+  Button,
+  Tooltip,
+  Text,
+  Paragraph,
+  YStack,
+} from "tamagui";
+import { defaultConfig } from "@tamagui/config/v5";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
@@ -23,10 +24,7 @@ export default function Index() {
     return (
       <View style={styles.container}>
         <Text>User didn't agree to share location</Text>
-        <Button
-          title="Go to settings"
-          onPress={() => Linking.openSettings()}
-        ></Button>
+        <Button onPress={() => Linking.openSettings()}>Go to settings</Button>
       </View>
     );
   }
@@ -50,6 +48,9 @@ export default function Index() {
           </Mapbox.MarkerView>
         )}
       </Mapbox.MapView>
+      <Button circular elevation="$4" size="$5" style={styles.fab}>
+        +
+      </Button>
     </View>
   );
 }
@@ -79,7 +80,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: "absolute",
-    right: 8,
-    bottom: 8,
+    right: 16,
+    bottom: 16,
   },
 });

@@ -1,7 +1,7 @@
 import { client } from "@/lib/api-client";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "expo-router";
-import { View, StyleSheet, Button } from "react-native";
+import { View, Button } from "tamagui";
 
 export default function SignIn() {
   const router = useRouter();
@@ -21,16 +21,8 @@ export default function SignIn() {
   };
 
   return (
-    <View style={styles.container}>
-      <Button title="Login with Github" onPress={handleLogin} />
+    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <Button onPress={handleLogin}>Login with Github</Button>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
