@@ -1,10 +1,3 @@
-import {
-  Image,
-  Linking,
-  Pressable,
-  StyleSheet,
-  Dimensions,
-} from "react-native";
 import Mapbox, { FillLayer } from "@rnmapbox/maps";
 import { useLocation } from "@/hooks/useLocation";
 import { authClient } from "@/lib/auth-client";
@@ -16,6 +9,8 @@ import { set } from "better-auth";
 import { Feature, Polygon, Point } from "geojson";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { client } from "@/lib/api-client";
+import { AppState, Linking, Pressable, StyleSheet } from "react-native";
+
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
 export default function Index() {
@@ -104,10 +99,7 @@ export default function Index() {
           >
             <Pressable style={styles.markerBox}>
               {data?.user.image && (
-                <Image
-                  source={{ uri: data.user.image }}
-                  style={styles.avatar}
-                ></Image>
+                <Image src={data.user.image} style={styles.avatar}></Image>
               )}
             </Pressable>
           </Mapbox.MarkerView>

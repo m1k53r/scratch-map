@@ -2,15 +2,21 @@ import { ReactQueryClient } from "@/lib/react-query-client";
 import { Stack } from "expo-router";
 import { SplashScreenController } from "../splash";
 import { authClient } from "@/lib/auth-client";
-import { createTamagui, TamaguiProvider, Theme } from "tamagui";
-import { defaultConfig } from "@tamagui/config/v5";
-
-const config = createTamagui(defaultConfig);
+import { TamaguiProvider, Theme } from "tamagui";
+import { config } from "@/../tamagui.config";
+import { useTheme } from "@/stores/useTheme";
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
 
 export default function Root() {
+  const { theme } = useTheme();
+
   return (
-    <TamaguiProvider config={config} defaultTheme="dark">
-      <Theme name="dark">
+    <TamaguiProvider config={config} defaultTheme={theme}>
+      <Theme name={theme}>
         <ReactQueryClient>
           <SplashScreenController />
           <RootNavigator />
@@ -22,6 +28,7 @@ export default function Root() {
 
 function RootNavigator() {
   const { data } = authClient.useSession();
+  const { theme } = useTheme();
 
   return (
     <Stack>

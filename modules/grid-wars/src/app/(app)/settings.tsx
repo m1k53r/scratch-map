@@ -1,10 +1,14 @@
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "expo-router";
-import { Button, StyleSheet, View } from "react-native";
+import { StyleSheet } from "react-native";
+import { Button, View } from "tamagui";
+import { useTheme } from "@/stores/useTheme";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 export default function Settings() {
   const router = useRouter();
   const { data: session } = authClient.useSession();
+  const { theme, setTheme } = useTheme();
 
   const logout = async () => {
     router.replace("/");
@@ -19,7 +23,14 @@ export default function Settings() {
 
   return (
     <View style={styles.container}>
-      <Button title="Logout" onPress={logout}></Button>
+      <Button onPress={() => setTheme(theme === "dark" ? "light" : "dark")}>
+        <Ionicons
+          name={theme === "dark" ? "sunny" : "moon"}
+          size={32}
+          color={theme === "dark" ? "#fff" : "#000"}
+        />
+      </Button>
+      <Button onPress={logout}>Logout</Button>
     </View>
   );
 }
