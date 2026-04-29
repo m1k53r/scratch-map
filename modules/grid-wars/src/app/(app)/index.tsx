@@ -12,7 +12,7 @@ import {
   Paragraph,
   YStack,
 } from "tamagui";
-import { defaultConfig } from "@tamagui/config/v5";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
@@ -49,7 +49,7 @@ export default function Index() {
         )}
       </Mapbox.MapView>
       <Button circular elevation="$4" size="$5" style={styles.fab}>
-        +
+        <Ionicons name="play" size={24} color="$theme" />
       </Button>
     </View>
   );
