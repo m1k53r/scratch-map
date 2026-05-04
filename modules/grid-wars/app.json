@@ -11,9 +11,7 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
-      "permissions": [
-        "INTERNET"
-      ],
+      "permissions": ["INTERNET"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -47,7 +45,7 @@
           "androidGoogleMapsApiKey": "AIzaSyCFKHPEVsqHyr97gydC4W7cKz-CZjpX7f0"
         }
       ],
-      "@rnmapbox/maps"
+      "react-native-reanimated/plugin"
     ],
     "experiments": {
       "typedRoutes": true,
