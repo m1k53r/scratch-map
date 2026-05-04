@@ -15,7 +15,7 @@ import { useState, useRef } from "react";
 import { set } from "better-auth";
 import { Feature, Polygon, Point } from "geojson";
 import AntDesign from "@expo/vector-icons/AntDesign";
-
+import { client } from "@/lib/api-client";
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
 export default function Index() {
@@ -25,6 +25,15 @@ export default function Index() {
   const [selectMode, setSelectMode] = useState(false);
   const [lobbyArea, setLobbyArea] = useState<Feature<Polygon> | null>(null);
   const [points, setPoints] = useState<[number, number][]>([]);
+
+  let createLobby = async () => {
+    const res = await client["create-lobby"].post({
+      hostId: data?.user.id!,
+      isPublic: false,
+      minLat: location?.coords.latitude!,
+      minLng: location?.coords.longitude!,
+    });
+  };
 
   let openCreateLobbyForm = () => {
     setIsFormOpen((prev) => !prev);
@@ -154,7 +163,9 @@ export default function Index() {
           >
             Select area
           </Button>
-          <Button style={styles.formButton}>Create Lobby</Button>
+          <Button style={styles.formButton} onPress={createLobby}>
+            Create Lobby
+          </Button>
         </View>
       ) : null}
       {selectMode && (
