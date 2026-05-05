@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  lint-api:
+    name: API - Lint, Format & Typecheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout kodu
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Instalacja zależności
+        run: bun install
+
+      - name: Lint (ESLint)
+        working-directory: modules/api
+        run: bun run lint
+
+      - name: Format check (Prettier)
+        working-directory: modules/api
+        run: bun run format:check
+
+      - name: Typecheck (TypeScript)
+        working-directory: modules/api
+        run: bun run typecheck
+
+typecheck-mobile:
+  name: Mobile - Typecheck
+  runs-on: ubuntu-latest
+
+  steps:
+    - name: Checkout kodu
+      uses: actions/checkout@v4
+      
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+    
+    - name: Instalacja zależności
+      run: bun install
+
+    - name: Typecheck (TypeScript)
+      working-directory: modules/grid-wars
+      run: bun run typecheck
