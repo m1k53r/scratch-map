@@ -35,22 +35,22 @@ jobs:
         working-directory: modules/api
         run: bun run typecheck
 
-typecheck-mobile:
-  name: Mobile - Typecheck
-  runs-on: ubuntu-latest
+  typecheck-mobile:
+    name: Mobile - Typecheck
+    runs-on: ubuntu-latest
 
-  steps:
-    - name: Checkout kodu
-      uses: actions/checkout@v4
-      
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
-      with:
-        bun-version: latest
-    
-    - name: Instalacja zależności
-      run: bun install
+    steps:
+      - name: Checkout kodu
+        uses: actions/checkout@v4
 
-    - name: Typecheck (TypeScript)
-      working-directory: modules/grid-wars
-      run: bun run typecheck
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Instalacja zależności
+        run: bun install
+
+      - name: Typecheck (TypeScript)
+        working-directory: modules/grid-wars
+        run: bun run typecheck
