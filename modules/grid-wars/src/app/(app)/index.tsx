@@ -1,17 +1,9 @@
-import {
-  AppState,
-  Button,
-  Image,
-  Linking,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { AppState, Linking, Pressable, StyleSheet } from "react-native";
 import Mapbox from "@rnmapbox/maps";
 import { useLocation } from "@/hooks/useLocation";
 import { authClient } from "@/lib/auth-client";
 import { useResume } from "@/hooks/useResume";
+import { View, Button, Image, Text } from "tamagui";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
@@ -23,10 +15,7 @@ export default function Index() {
     return (
       <View style={styles.container}>
         <Text>User didn't agree to share location</Text>
-        <Button
-          title="Go to settings"
-          onPress={() => Linking.openSettings()}
-        ></Button>
+        <Button onPress={() => Linking.openSettings()}>Go to settings</Button>
       </View>
     );
   }
@@ -41,10 +30,7 @@ export default function Index() {
           >
             <Pressable style={styles.markerBox}>
               {data?.user.image && (
-                <Image
-                  source={{ uri: data.user.image }}
-                  style={styles.avatar}
-                ></Image>
+                <Image src={data.user.image} style={styles.avatar}></Image>
               )}
             </Pressable>
           </Mapbox.MarkerView>

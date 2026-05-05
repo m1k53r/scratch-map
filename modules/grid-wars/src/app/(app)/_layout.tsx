@@ -1,20 +1,50 @@
 import { NativeTabs } from "expo-router/build/native-tabs";
+import { useTheme } from "@/stores/useTheme";
+import {
+  DarkTheme,
+  DefaultTheme,
+  ThemeProvider,
+} from "@react-navigation/native";
+import { Tabs } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 export default function Layout() {
+  const { theme } = useTheme();
   return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="house.fill" md="home" />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="profile">
-        <NativeTabs.Trigger.Label>Me</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="person" md="person" />
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="settings">
-        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="gear" md="settings" />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <ThemeProvider value={theme === "dark" ? DarkTheme : DefaultTheme}>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: "Home",
+            tabBarIcon: ({ color }) => (
+              <Ionicons size={28} name="home" color={color} />
+            ),
+          }}
+        ></Tabs.Screen>
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: "Me",
+            tabBarIcon: ({ color }) => (
+              <Ionicons size={28} name="man" color={color} />
+            ),
+          }}
+        ></Tabs.Screen>
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: "Settings",
+            tabBarIcon: ({ color }) => (
+              <Ionicons size={28} name="settings" color={color} />
+            ),
+          }}
+        ></Tabs.Screen>
+      </Tabs>
+    </ThemeProvider>
   );
 }
