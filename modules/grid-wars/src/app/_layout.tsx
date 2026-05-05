@@ -2,13 +2,15 @@ import { ReactQueryClient } from "@/lib/react-query-client";
 import { Stack } from "expo-router";
 import { SplashScreenController } from "../splash";
 import { authClient } from "@/lib/auth-client";
+import { TamaguiProvider, Theme } from "tamagui";
+import { config } from "@/tamagui.config";
 
 export default function Root() {
   return (
-    <ReactQueryClient>
+    <TamaguiProvider config={config} defaultTheme="dark">
       <SplashScreenController />
       <RootNavigator />
-    </ReactQueryClient>
+    </TamaguiProvider>
   );
 }
 
