@@ -19,6 +19,7 @@
     "dev": "bunx concurrently --names \"api,grid-wars\" --prefix-colors \"yellow,blue\" \"bun run start:api\" \"bun run start:grid-wars\""
   },
   "dependencies": {
+    "@sinclair/typebox": "^0.34.49",
     "wscat": "^6.1.0"
   }
 }
