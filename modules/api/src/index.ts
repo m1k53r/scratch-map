@@ -53,20 +53,24 @@ export const app = new Elysia()
   .post(
     "create-lobby",
     ({ body }) => {
-      const newLobby: Lobby = createLobby(body.hostId, body.isPublic, [
-        body.minLat,
-        body.minLng,
-      ]);
+      const newLobby: Lobby = createLobby(
+        body.hostId,
+        body.isPublic,
+        body.coordinates,
+        body.membersLimit,
+        body.timeLimit,
+      );
       lobbies[newLobby.id] = newLobby;
       console.log(lobbies);
-      return { message: "Lobby created successfully" };
+      return newLobby.id;
     },
     {
       body: t.Object({
         hostId: t.String(),
         isPublic: t.Boolean(),
-        minLat: t.Number(),
-        minLng: t.Number(),
+        coordinates: t.Array(t.Tuple([t.Number(), t.Number()])),
+        membersLimit: t.Number(),
+        timeLimit: t.Number(),
       }),
     },
   )

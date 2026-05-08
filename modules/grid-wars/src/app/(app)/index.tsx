@@ -2,32 +2,49 @@ import Mapbox, { FillLayer } from "@rnmapbox/maps";
 import { useLocation } from "@/hooks/useLocation";
 import { authClient } from "@/lib/auth-client";
 import { useResume } from "@/hooks/useResume";
-import { View, Button, Text, Input } from "tamagui";
+import { View, Button, Text, Input, Image } from "tamagui";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState, useRef } from "react";
 import { set } from "better-auth";
 import { Feature, Polygon, Point } from "geojson";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { client } from "@/lib/api-client";
-import { AppState, Linking, Pressable, StyleSheet } from "react-native";
+import {
+  AppState,
+  Dimensions,
+  Linking,
+  Pressable,
+  StyleSheet,
+} from "react-native";
+import { useTheme } from "@/stores/useTheme";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
 export default function Index() {
   const { data } = authClient.useSession();
+  const [timeLimit, setTimeLimit] = useState(0);
+  const [membersLimit, setMembersLimit] = useState(0);
   const { location, permissionStatus } = useLocation();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [lobbyArea, setLobbyArea] = useState<Feature<Polygon> | null>(null);
   const [points, setPoints] = useState<[number, number][]>([]);
+  const { theme } = useTheme();
 
   let createLobby = async () => {
     const res = await client["create-lobby"].post({
       hostId: data?.user.id!,
       isPublic: false,
-      minLat: location?.coords.latitude!,
-      minLng: location?.coords.longitude!,
+      coordinates: points,
+      membersLimit: membersLimit,
+      timeLimit: timeLimit,
     });
+
+    // send data throught websocket to let other users draw public lobby as geofence (lobbyid, coordinates)
+
+    setTimeLimit(0);
+    setMembersLimit(0);
+    setPoints([]);
   };
 
   let openCreateLobbyForm = () => {
@@ -57,7 +74,6 @@ export default function Index() {
         },
         properties: {},
       });
-      setPoints([]);
     }
   };
 
@@ -143,9 +159,30 @@ export default function Index() {
         )}
       </Mapbox.MapView>
       {isFormOpen ? (
-        <View style={styles.lobbyForm}>
-          <Input placeholder="Lobby name" width={200} margin="$2" />
-          <Input placeholder="Players number" width={200} margin="$2" />
+        <View
+          style={styles.lobbyForm}
+          backgroundColor={theme === "dark" ? "black" : "white"}
+        >
+          <Input
+            value={timeLimit}
+            onChangeText={(value) => setTimeLimit(Number(value))}
+            backgroundColor={theme === "dark" ? "gray" : "white"}
+            placeholder="Time limit"
+            width={200}
+            margin="$2"
+            placeholderTextColor={theme === "dark" ? "white" : "black"}
+            type="number"
+          />
+          <Input
+            value={membersLimit}
+            onChangeText={(value) => setMembersLimit(Number(value))}
+            backgroundColor={theme === "dark" ? "gray" : "white"}
+            placeholder="Players number"
+            width={200}
+            placeholderTextColor={theme === "dark" ? "white" : "black"}
+            margin="$2"
+            type="number"
+          />
           <Button
             style={styles.formButton}
             onPress={() => {
@@ -169,7 +206,11 @@ export default function Index() {
           style={{ position: "absolute", top: 35, alignSelf: "center" }}
           circular
         >
-          <Ionicons name="checkmark" size={24} color="white" />
+          <Ionicons
+            name="checkmark"
+            size={24}
+            color={theme === "dark" ? "white" : "black"}
+          />
         </Button>
       )}
       <Button
@@ -180,9 +221,17 @@ export default function Index() {
         onPress={openCreateLobbyForm}
       >
         {isFormOpen ? (
-          <Ionicons name="close" size={24} color="white" />
+          <Ionicons
+            name="close"
+            size={24}
+            color={theme === "dark" ? "white" : "black"}
+          />
         ) : (
-          <Ionicons name="play" size={24} color="white" />
+          <Ionicons
+            name="play"
+            size={24}
+            color={theme === "dark" ? "white" : "black"}
+          />
         )}
       </Button>
       <Button
@@ -195,13 +244,19 @@ export default function Index() {
           setPoints([]);
         }}
       >
-        <AntDesign name="clear" size={24} color="white" />
+        <AntDesign
+          name="clear"
+          size={24}
+          color={theme === "dark" ? "white" : "black"}
+        />
       </Button>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const { width, height } = Dimensions.get("window");
+
+export const styles = StyleSheet.create({
   container: {
     flex: 1,
     alignItems: "center",
@@ -241,7 +296,6 @@ const styles = StyleSheet.create({
     alignContent: "center",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "black",
     padding: 16,
     borderRadius: 8,
     maxWidth: width - 10,

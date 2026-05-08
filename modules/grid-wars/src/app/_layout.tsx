@@ -37,7 +37,7 @@ function RootNavigator() {
       </Stack.Protected>
 
       <Stack.Protected guard={!data}>
-        <Stack.Screen name="sign-in" />
+        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       </Stack.Protected>
     </Stack>
   );

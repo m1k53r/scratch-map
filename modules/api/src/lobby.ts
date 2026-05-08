@@ -9,30 +9,32 @@ let lobbies: Lobbies = {};
 export const createLobby = (
   hostId: string,
   isPublic: boolean,
-  coordinates: [number, number],
+  coordinates: [number, number][],
+  membersLimit: number,
+  timeLimit: number,
 ) => {
   if (!hostId) {
     throw new Error("Host ID is required to create a lobby");
   }
 
-  const joinCode = isPublic ? null : returnJoinCode();
+  const joinCode = isPublic ? null : generateJoinCode();
   const lobby: Lobby = {
     id: uuid().toString(),
     hostId,
     lobbyStatus: "waiting",
     joinCode,
-    minLat: coordinates[0],
-    minLng: coordinates[1],
-    maxLat: coordinates[0],
-    maxLng: coordinates[1],
+    coordinates,
     members: [hostId],
-    settings: {},
+    settings: {
+      membersLimit,
+      timeLimit,
+    },
     createdAt: new Date(Date.now()),
   };
   return lobby;
 };
 
-export const returnJoinCode = () => {
+export const generateJoinCode = () => {
   return customAlphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 6)();
 };
 
