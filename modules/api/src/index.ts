@@ -6,19 +6,24 @@ import { createLobby } from "./lobby";
 import Lobbies, { Lobby } from "./types/Lobby";
 
 let lobbies: Lobbies = {};
+const wsClients = new Set<any>();
+
+function broadcast(data: unknown) {
+  const message = JSON.stringify(data);
+
+  for (const client of wsClients) {
+    client.send(message);
+  }
+}
 
 export const websocket = new Elysia({ name: "websocket" })
   .use(cors())
   .ws("/ws", {
     open(ws) {
-      console.log("WebSocket connection opened");
-    },
-    message(ws, message) {
-      console.log("Received message:", message);
-      ws.send(`Echo: ${message}`);
+      wsClients.add(ws);
     },
     close(ws) {
-      console.log("WebSocket connection closed");
+      wsClients.delete(ws);
     },
   })
   .listen(3080);
@@ -61,7 +66,14 @@ export const app = new Elysia()
         body.timeLimit,
       );
       lobbies[newLobby.id] = newLobby;
-      console.log(lobbies);
+      broadcast({
+        type: "lobby_created",
+        payload: {
+          id: newLobby.id,
+          coordinates: newLobby.coordinates,
+        },
+      });
+
       return newLobby.id;
     },
     {
@@ -74,6 +86,9 @@ export const app = new Elysia()
       }),
     },
   )
+  .get("get-lobbies", () => {
+    return lobbies;
+  })
   .listen(8080);
 
 console.log(

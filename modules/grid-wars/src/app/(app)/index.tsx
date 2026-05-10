@@ -17,6 +17,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { useTheme } from "@/stores/useTheme";
+import { useLobby } from "@/stores/useLobby";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
@@ -30,6 +31,7 @@ export default function Index() {
   const [lobbyArea, setLobbyArea] = useState<Feature<Polygon> | null>(null);
   const [points, setPoints] = useState<[number, number][]>([]);
   const { theme } = useTheme();
+  const lobbies = useLobby((state) => state.lobbies);
 
   let createLobby = async () => {
     const res = await client["create-lobby"].post({
@@ -39,8 +41,6 @@ export default function Index() {
       membersLimit: membersLimit,
       timeLimit: timeLimit,
     });
-
-    // send data throught websocket to let other users draw public lobby as geofence (lobbyid, coordinates)
 
     setTimeLimit(0);
     setMembersLimit(0);
@@ -108,6 +108,28 @@ export default function Index() {
             location.coords.latitude,
           ]}
         />
+        {lobbies.map((lobby) => (
+          <Mapbox.ShapeSource
+            key={lobby.id}
+            id={`lobby-${lobby.id}`}
+            shape={{
+              type: "Feature",
+              geometry: {
+                type: "Polygon",
+                coordinates: [lobby.coordinates],
+              },
+              properties: {},
+            }}
+          >
+            <FillLayer
+              id={`fill-${lobby.id}`}
+              style={{
+                fillColor: "red",
+                fillOpacity: 0.4,
+              }}
+            />
+          </Mapbox.ShapeSource>
+        ))}
         {location && (
           <Mapbox.MarkerView
             coordinate={[location.coords.longitude, location.coords.latitude]}

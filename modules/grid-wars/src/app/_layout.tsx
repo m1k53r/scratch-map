@@ -10,9 +10,15 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
+import { useEffect } from "react";
+import { connectWebsocket } from "../../websocket/websocket";
 
 export default function Root() {
   const { theme } = useTheme();
+
+  useEffect(() => {
+    connectWebsocket();
+  }, []);
 
   return (
     <TamaguiProvider config={config} defaultTheme={theme}>
