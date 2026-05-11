@@ -20,8 +20,17 @@ export function connectWebsocket() {
     const data = JSON.parse(event.data);
 
     switch (data.type) {
+      case "lobbies_sync":
+        useLobby.getState().setLobbies(data.payload);
+        break;
+
       case "lobby_created":
         useLobby.getState().addLobby(data.payload);
+        break;
+
+      case "lobby_deleted":
+        useLobby.getState().removeLobby(data.payload.id);
+        break;
     }
   };
 }

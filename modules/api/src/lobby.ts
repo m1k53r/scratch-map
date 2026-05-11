@@ -41,5 +41,3 @@ export const generateJoinCode = () => {
 export const joinLobby = (gameCode: string) => {};
 
 export const leaveLobby = async (lobbyId: string, userId: string) => {};
-
-export const closeLobby = async (lobbyId: string, userId: string) => {};

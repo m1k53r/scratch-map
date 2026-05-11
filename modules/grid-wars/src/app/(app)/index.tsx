@@ -30,6 +30,7 @@ export default function Index() {
   const [selectMode, setSelectMode] = useState(false);
   const [lobbyArea, setLobbyArea] = useState<Feature<Polygon> | null>(null);
   const [points, setPoints] = useState<[number, number][]>([]);
+  const [myLobby, setMyLobby] = useState("");
   const { theme } = useTheme();
   const lobbies = useLobby((state) => state.lobbies);
 
@@ -42,9 +43,21 @@ export default function Index() {
       timeLimit: timeLimit,
     });
 
+    setMyLobby(res.data as string);
+    console.log(myLobby);
+
     setTimeLimit(0);
     setMembersLimit(0);
     setPoints([]);
+    setLobbyArea(null);
+  };
+
+  let deleteLobby = async () => {
+    const res = await client["delete-lobby"].post({
+      lobbyId: myLobby,
+    });
+
+    console.log(res.data);
   };
 
   let openCreateLobbyForm = () => {
@@ -272,6 +285,21 @@ export default function Index() {
           color={theme === "dark" ? "white" : "black"}
         />
       </Button>
+      <Button
+        circular
+        elevation="$4"
+        size="$5"
+        style={styles.fabd}
+        onPress={() => {
+          deleteLobby();
+        }}
+      >
+        <Ionicons
+          name="remove"
+          size={24}
+          color={theme === "dark" ? "white" : "black"}
+        />
+      </Button>
     </View>
   );
 }
@@ -309,6 +337,11 @@ export const styles = StyleSheet.create({
   fabl: {
     position: "absolute",
     left: 16,
+    bottom: 16,
+  },
+  fabd: {
+    position: "absolute",
+    left: 76,
     bottom: 16,
   },
   lobbyForm: {

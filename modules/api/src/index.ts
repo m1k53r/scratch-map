@@ -21,6 +21,12 @@ export const websocket = new Elysia({ name: "websocket" })
   .ws("/ws", {
     open(ws) {
       wsClients.add(ws);
+      ws.send(
+        JSON.stringify({
+          type: "lobbies_sync",
+          payload: Object.values(lobbies),
+        }),
+      );
     },
     close(ws) {
       wsClients.delete(ws);
@@ -58,6 +64,11 @@ export const app = new Elysia()
   .post(
     "create-lobby",
     ({ body }) => {
+      const alreadyHasLobby = Object.values(lobbies).some(
+        (lobby) => lobby.hostId == body.hostId,
+      );
+      if (alreadyHasLobby) return;
+
       const newLobby: Lobby = createLobby(
         body.hostId,
         body.isPublic,
@@ -73,7 +84,7 @@ export const app = new Elysia()
           coordinates: newLobby.coordinates,
         },
       });
-
+      console.log(lobbies);
       return newLobby.id;
     },
     {
@@ -89,6 +100,29 @@ export const app = new Elysia()
   .get("get-lobbies", () => {
     return lobbies;
   })
+  .post(
+    "delete-lobby",
+    ({ body }) => {
+      const { lobbyId } = body;
+      if (!(lobbyId in lobbies)) {
+        return { success: false };
+      }
+
+      delete lobbies[lobbyId];
+      broadcast({
+        type: "lobby_deleted",
+        payload: { id: lobbyId },
+      });
+
+      return {
+        success: true,
+        removedId: lobbyId,
+      };
+    },
+    {
+      body: t.Object({ lobbyId: t.String() }),
+    },
+  )
   .listen(8080);
 
 console.log(
