@@ -4,6 +4,7 @@ import { auth } from "./auth";
 import cors from "@elysiajs/cors";
 import { createLobby } from "./lobby";
 import Lobbies, { Lobby } from "./types/Lobby";
+import { MessageType, WebSocketCodes } from "@gridwars/types";
 
 let lobbies: Lobbies = {};
 const wsClients = new Set<any>();
@@ -21,12 +22,11 @@ export const websocket = new Elysia({ name: "websocket" })
   .ws("/ws", {
     open(ws) {
       wsClients.add(ws);
-      ws.send(
-        JSON.stringify({
-          type: "lobbies_sync",
-          payload: Object.values(lobbies),
-        }),
-      );
+      const message: MessageType = {
+        code: WebSocketCodes.LOBBIES_SYNC,
+        body: Object.values(lobbies),
+      };
+      ws.send(JSON.stringify(message));
     },
     close(ws) {
       wsClients.delete(ws);
@@ -77,13 +77,14 @@ export const app = new Elysia()
         body.timeLimit,
       );
       lobbies[newLobby.id] = newLobby;
-      broadcast({
-        type: "lobby_created",
-        payload: {
+      const message: MessageType = {
+        code: WebSocketCodes.LOBBY_CREATED,
+        body: {
           id: newLobby.id,
           coordinates: newLobby.coordinates,
         },
-      });
+      };
+      broadcast(message);
       console.log(lobbies);
       return newLobby.id;
     },
@@ -109,10 +110,11 @@ export const app = new Elysia()
       }
 
       delete lobbies[lobbyId];
-      broadcast({
-        type: "lobby_deleted",
-        payload: { id: lobbyId },
-      });
+      const message: MessageType = {
+        code: WebSocketCodes.LOBBY_CLOSED,
+        body: lobbyId,
+      };
+      broadcast(message);
 
       return {
         success: true,

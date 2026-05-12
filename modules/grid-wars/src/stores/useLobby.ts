@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type LobbyOnMap = {
+export type LobbyOnMap = {
   id: string;
   coordinates: [number, number][];
 };

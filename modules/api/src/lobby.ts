@@ -4,8 +4,6 @@ import { db } from "./db";
 import { lobby, user } from "./db/schema";
 import Lobbies, { Lobby } from "./types/Lobby";
 
-let lobbies: Lobbies = {};
-
 export const createLobby = (
   hostId: string,
   isPublic: boolean,

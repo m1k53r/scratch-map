@@ -11,13 +11,13 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { useEffect } from "react";
-import { connectWebsocket } from "../../websocket/websocket";
+import { initWebSocket } from "@/lib/websocket-client";
 
 export default function Root() {
   const { theme } = useTheme();
 
   useEffect(() => {
-    connectWebsocket();
+    initWebSocket();
   }, []);
 
   return (
