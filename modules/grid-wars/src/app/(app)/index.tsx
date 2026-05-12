@@ -23,11 +23,12 @@ Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
 export default function Index() {
   const { data } = authClient.useSession();
-  const [timeLimit, setTimeLimit] = useState(0);
-  const [membersLimit, setMembersLimit] = useState(0);
+  const [timeLimit, setTimeLimit] = useState("");
+  const [membersLimit, setMembersLimit] = useState("");
   const { location, permissionStatus } = useLocation();
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectMode, setSelectMode] = useState(false);
+  const [formMode, setFormMode] = useState<"open" | "closed" | "select_area">(
+    "closed",
+  );
   const [lobbyArea, setLobbyArea] = useState<Feature<Polygon> | null>(null);
   const [points, setPoints] = useState<[number, number][]>([]);
   const [myLobby, setMyLobby] = useState("");
@@ -39,8 +40,8 @@ export default function Index() {
       hostId: data?.user.id!,
       isPublic: false,
       coordinates: points,
-      membersLimit: membersLimit,
-      timeLimit: timeLimit,
+      membersLimit: Number(membersLimit),
+      timeLimit: Number(timeLimit),
     });
 
     setMyLobby(res.data as string);
@@ -61,11 +62,11 @@ export default function Index() {
   };
 
   let openCreateLobbyForm = () => {
-    setIsFormOpen((prev) => !prev);
+    setFormMode("open");
   };
 
   const handleMapPress = (e: any) => {
-    if (!selectMode) return;
+    if (formMode != "select_area") return;
 
     const coords = e?.geometry?.coordinates;
     if (!coords) return;
@@ -76,7 +77,7 @@ export default function Index() {
   let drawLobbyArea = (e: any) => {
     if (!location?.coords) return;
 
-    setIsFormOpen(false);
+    setFormMode("select_area");
 
     if (points.length >= 3) {
       setLobbyArea({
@@ -193,77 +194,87 @@ export default function Index() {
           </Mapbox.ShapeSource>
         )}
       </Mapbox.MapView>
-      {isFormOpen ? (
+      {formMode === "open" && (
         <View
           style={styles.lobbyForm}
           backgroundColor={theme === "dark" ? "black" : "white"}
         >
           <Input
             value={timeLimit}
-            onChangeText={(value) => setTimeLimit(Number(value))}
+            onChangeText={setTimeLimit}
             backgroundColor={theme === "dark" ? "gray" : "white"}
             placeholder="Time limit"
             width={200}
             margin="$2"
             placeholderTextColor={theme === "dark" ? "white" : "black"}
-            type="number"
+            keyboardType="numeric"
           />
+
           <Input
             value={membersLimit}
-            onChangeText={(value) => setMembersLimit(Number(value))}
+            onChangeText={setMembersLimit}
             backgroundColor={theme === "dark" ? "gray" : "white"}
             placeholder="Players number"
             width={200}
-            placeholderTextColor={theme === "dark" ? "white" : "black"}
             margin="$2"
-            type="number"
+            placeholderTextColor={theme === "dark" ? "white" : "black"}
+            keyboardType="numeric"
           />
+
           <Button
             style={styles.formButton}
-            onPress={() => {
-              setSelectMode(true);
-              setIsFormOpen(false);
-            }}
+            onPress={() => setFormMode("select_area")}
           >
             Select area
           </Button>
+
           <Button style={styles.formButton} onPress={createLobby}>
             Create Lobby
           </Button>
         </View>
-      ) : null}
-      {selectMode && (
-        <Button
-          onPress={() => {
-            drawLobbyArea(null);
-            setSelectMode(false);
-          }}
-          style={{ position: "absolute", top: 35, alignSelf: "center" }}
-          circular
-        >
-          <Ionicons
-            name="checkmark"
-            size={24}
-            color={theme === "dark" ? "white" : "black"}
-          />
-        </Button>
       )}
       <Button
         circular
         elevation="$4"
         size="$5"
         style={styles.fab}
-        onPress={openCreateLobbyForm}
+        onPress={() => {
+          if (formMode === "closed") {
+            setFormMode("open");
+            return;
+          }
+
+          if (formMode === "open") {
+            setFormMode("select_area");
+            return;
+          }
+
+          if (formMode === "select_area") {
+            drawLobbyArea(null);
+            setFormMode("open");
+            return;
+          }
+        }}
       >
-        {isFormOpen ? (
+        {formMode === "closed" && (
+          <Ionicons
+            name="play"
+            size={24}
+            color={theme === "dark" ? "white" : "black"}
+          />
+        )}
+
+        {formMode === "open" && (
           <Ionicons
             name="close"
             size={24}
             color={theme === "dark" ? "white" : "black"}
           />
-        ) : (
+        )}
+
+        {formMode === "select_area" && (
           <Ionicons
-            name="play"
+            name="checkmark"
             size={24}
             color={theme === "dark" ? "white" : "black"}
           />
