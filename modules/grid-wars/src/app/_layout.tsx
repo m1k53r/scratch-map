@@ -34,7 +34,6 @@ export default function Root() {
 
 function RootNavigator() {
   const { data } = authClient.useSession();
-  const { theme } = useTheme();
 
   return (
     <Stack>

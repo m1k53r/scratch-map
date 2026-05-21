@@ -5,8 +5,29 @@ import cors from "@elysiajs/cors";
 import { createLobby } from "./lobby";
 import Lobbies, { Lobby } from "./types/Lobby";
 import { MessageType, WebSocketCodes } from "@gridwars/types";
+import { timestamp } from "drizzle-orm/gel-core";
+import { test } from "bun:test";
 
 let lobbies: Lobbies = {};
+const testLobby: Lobby = {
+  id: "ec707f78-fa40-4eea-bfe8-7520a93daa8a",
+  lobbyStatus: "waiting",
+  joinCode: "XFK4LV",
+  coordinates: [
+    [18.644138233573585, 54.354860406740386],
+    [18.64666623459479, 54.35491514271857],
+    [18.646572623977477, 54.35333726188969],
+    [18.643841714227676, 54.35319171538819],
+  ],
+  members: ["GBT37DSgsuxBui59xZsGc0gimeuZvZls"],
+  settings: {
+    membersLimit: 10,
+    timeLimit: 10,
+  },
+  createdAt: new Date(Date.now()),
+};
+lobbies[testLobby.id] = testLobby;
+
 const wsClients = new Set<any>();
 
 function broadcast(data: unknown) {
@@ -64,8 +85,8 @@ export const app = new Elysia()
   .post(
     "create-lobby",
     ({ body }) => {
-      const alreadyHasLobby = Object.values(lobbies).some(
-        (lobby) => lobby.hostId == body.hostId,
+      const alreadyHasLobby = Object.values(lobbies).some((lobby) =>
+        lobby.members.includes(body.hostId),
       );
       if (alreadyHasLobby) return;
 
@@ -86,7 +107,7 @@ export const app = new Elysia()
       };
       broadcast(message);
       console.log(lobbies);
-      return newLobby.id;
+      return { id: newLobby.id, success: true };
     },
     {
       body: t.Object({
@@ -125,6 +146,14 @@ export const app = new Elysia()
       body: t.Object({ lobbyId: t.String() }),
     },
   )
+  .post("get-lobby-members", ({ body }) => {
+    const { lobbyId } = body;
+    const lobby = lobbies[lobbyId];
+    if (!lobby) {
+      return { success: false };
+    }
+    return { success: true, members: lobby.members };
+  })
   .listen(8080);
 
 console.log(

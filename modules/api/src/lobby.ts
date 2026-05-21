@@ -18,7 +18,6 @@ export const createLobby = (
   const joinCode = isPublic ? null : generateJoinCode();
   const lobby: Lobby = {
     id: uuid().toString(),
-    hostId,
     lobbyStatus: "waiting",
     joinCode,
     coordinates,

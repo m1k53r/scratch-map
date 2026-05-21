@@ -1,11 +1,11 @@
 import Settings from "./Settings";
 export type Lobby = {
   id: string;
-  hostId: string;
   lobbyStatus: "waiting" | "active" | "game_started";
   joinCode: string | null;
   coordinates: [number, number][];
   settings: Settings;
+  // first member is always the host
   members: string[];
   createdAt: Date;
 };

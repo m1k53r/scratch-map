@@ -2,7 +2,7 @@ import Mapbox, { FillLayer } from "@rnmapbox/maps";
 import { useLocation } from "@/hooks/useLocation";
 import { authClient } from "@/lib/auth-client";
 import { useResume } from "@/hooks/useResume";
-import { View, Button, Text, Input, Image } from "tamagui";
+import { View, Button, Text, Input, Image, YStack, XStack } from "tamagui";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState, useRef } from "react";
 import { set } from "better-auth";
@@ -26,12 +26,13 @@ export default function Index() {
   const [timeLimit, setTimeLimit] = useState("");
   const [membersLimit, setMembersLimit] = useState("");
   const { location, permissionStatus } = useLocation();
-  const [formMode, setFormMode] = useState<"open" | "closed" | "select_area">(
-    "closed",
-  );
+  const [formMode, setFormMode] = useState<
+    "open" | "closed" | "select_area" | "waiting_for_players"
+  >("closed");
   const [lobbyArea, setLobbyArea] = useState<Feature<Polygon> | null>(null);
   const [points, setPoints] = useState<[number, number][]>([]);
   const [myLobby, setMyLobby] = useState("");
+  const [lobbyMembers, setLobbyMembers] = useState<string[]>([]);
   const { theme } = useTheme();
   const lobbies = useLobby((state) => state.lobbies);
 
@@ -44,13 +45,24 @@ export default function Index() {
       timeLimit: Number(timeLimit),
     });
 
-    setMyLobby(res.data as string);
-    console.log(myLobby);
+    if (res.data.success) {
+      console.log(res.data);
+      setMyLobby(res.data.id as string);
+      setFormMode("waiting_for_players");
+      const initialMembers = await getLobbyMembers();
+      const currentUserId = data?.user.id;
 
-    setTimeLimit(0);
-    setMembersLimit(0);
-    setPoints([]);
-    setLobbyArea(null);
+      if (currentUserId && !initialMembers.includes(currentUserId)) {
+        setLobbyMembers([currentUserId, ...initialMembers]);
+      } else {
+        setLobbyMembers(initialMembers);
+      }
+
+      setTimeLimit(0);
+      setMembersLimit(0);
+      setPoints([]);
+      setLobbyArea(null);
+    }
   };
 
   let deleteLobby = async () => {
@@ -61,8 +73,12 @@ export default function Index() {
     console.log(res.data);
   };
 
-  let openCreateLobbyForm = () => {
-    setFormMode("open");
+  let getLobbyMembers = async () => {
+    const res = await client["get-lobby-members"].post({
+      lobbyId: myLobby,
+    });
+    console.log(res.data);
+    return (res.data?.members as string[]) ?? [];
   };
 
   const handleMapPress = (e: any) => {
@@ -233,6 +249,70 @@ export default function Index() {
           </Button>
         </View>
       )}
+      {formMode === "waiting_for_players" && (
+        <View
+          style={styles.lobbyForm}
+          backgroundColor={theme === "dark" ? "#121212" : "#f5f5f5"}
+        >
+          <Text
+            fontSize="$6"
+            fontWeight="bold"
+            marginBottom="$3"
+            color={theme === "dark" ? "white" : "black"}
+          >
+            Lobby: Waiting for players...
+          </Text>
+
+          <Text fontSize="$3" color="gray" marginBottom="$4">
+            Lobby ID: {myLobby}
+          </Text>
+
+          <YStack
+            width="100%"
+            gap="$2"
+            paddingHorizontal="$4"
+            style={{ flex: 1, maxHeight: 300 }}
+          >
+            {!lobbyMembers || lobbyMembers?.length === 0 ? (
+              <Text color="gray" textAlign="center" marginVertical="$4">
+                No players inside yet...
+              </Text>
+            ) : (
+              lobbyMembers?.map((memberId, index) => (
+                <XStack
+                  key={index}
+                  backgroundColor={theme === "dark" ? "#222" : "white"}
+                  padding="$3"
+                  borderRadius="$4"
+                  alignItems="center"
+                  gap="$3"
+                  elevation="$1"
+                >
+                  <Ionicons name="person" size={20} color="red" />
+                  <Text
+                    color={theme === "dark" ? "white" : "black"}
+                    fontWeight="500"
+                  >
+                    {memberId === data?.user.id
+                      ? `${memberId} (You / Host)`
+                      : memberId}
+                  </Text>
+                </XStack>
+              ))
+            )}
+          </YStack>
+
+          <Button
+            theme="red"
+            style={styles.formButton}
+            marginTop="$4"
+            onPress={deleteLobby}
+          >
+            Cancel & Close Lobby
+          </Button>
+        </View>
+      )}
+
       <Button
         circular
         elevation="$4"
@@ -254,6 +334,11 @@ export default function Index() {
             setFormMode("open");
             return;
           }
+
+          if (formMode === "waiting_for_players") {
+            setFormMode("closed");
+            return;
+          }
         }}
       >
         {formMode === "closed" && (
@@ -264,7 +349,7 @@ export default function Index() {
           />
         )}
 
-        {formMode === "open" && (
+        {(formMode === "open" || formMode === "waiting_for_players") && (
           <Ionicons
             name="close"
             size={24}
