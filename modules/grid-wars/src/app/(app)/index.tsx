@@ -4,7 +4,7 @@ import { authClient } from "@/lib/auth-client";
 import { useResume } from "@/hooks/useResume";
 import { View, Button, Text, Input, Image, YStack, XStack } from "tamagui";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { set } from "better-auth";
 import { Feature, Polygon, Point } from "geojson";
 import AntDesign from "@expo/vector-icons/AntDesign";
@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { useTheme } from "@/stores/useTheme";
 import { useLobby } from "@/stores/useLobby";
+import * as turf from "@turf/turf";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
@@ -36,11 +37,36 @@ export default function Index() {
   const { theme } = useTheme();
   const lobbies = useLobby((state) => state.lobbies);
 
+  useEffect(() => {
+    if (!location || !lobbies) return;
+
+    const myLocation: [number, number] = [
+      location.coords.longitude,
+      location.coords.latitude,
+    ];
+
+    for (const lobby of lobbies) {
+      const area: Polygon = {
+        type: "Polygon",
+        coordinates: [lobby.coordinates],
+      };
+      const inside = turf.booleanPointInPolygon(myLocation, area);
+
+      if (inside) {
+        console.log("You are inside of lobby:" + lobby.id);
+        return;
+      }
+    }
+    console.log("You are outside of polygon");
+    return;
+  }, [location, lobbies]);
+
   let createLobby = async () => {
+    const closedPolygon = [...points, points[0]];
     const res = await client["create-lobby"].post({
       hostId: data?.user.id!,
       isPublic: false,
-      coordinates: points,
+      coordinates: closedPolygon,
       membersLimit: Number(membersLimit),
       timeLimit: Number(timeLimit),
     });
@@ -95,12 +121,14 @@ export default function Index() {
 
     setFormMode("select_area");
 
+    const closedPolygon = [...points, points[0]];
+
     if (points.length >= 3) {
       setLobbyArea({
         type: "Feature",
         geometry: {
           type: "Polygon",
-          coordinates: [points],
+          coordinates: [closedPolygon],
         },
         properties: {},
       });
