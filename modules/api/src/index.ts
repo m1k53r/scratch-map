@@ -5,8 +5,6 @@ import cors from "@elysiajs/cors";
 import { createLobby } from "./lobby";
 import Lobbies, { Lobby } from "./types/Lobby";
 import { MessageType, WebSocketCodes } from "@gridwars/types";
-import { timestamp } from "drizzle-orm/gel-core";
-import { test } from "bun:test";
 
 let lobbies: Lobbies = {};
 const testLobby: Lobby = {
@@ -75,9 +73,9 @@ const betterAuth = new Elysia({ name: "better-auth" })
   });
 
 export const app = new Elysia()
-  .use(openapi({ path: "/" }))
-  .use(betterAuth)
   .use(cors())
+  .use(openapi({ path: "/docs" }))
+  .use(betterAuth)
   .use(websocket)
   .get("/me", ({ user }) => user, {
     auth: true,
@@ -146,14 +144,20 @@ export const app = new Elysia()
       body: t.Object({ lobbyId: t.String() }),
     },
   )
-  .post("get-lobby-members", ({ body }) => {
-    const { lobbyId } = body;
-    const lobby = lobbies[lobbyId];
-    if (!lobby) {
-      return { success: false };
-    }
-    return { success: true, members: lobby.members };
-  })
+  .post(
+    "get-lobby-members",
+    ({ body }) => {
+      const lobbyId = body.lobbyId;
+      const lobby = lobbies[lobbyId];
+      if (!lobby) {
+        return { success: false };
+      }
+      return { success: true, members: lobby.members };
+    },
+    {
+      body: t.Object({ lobbyId: t.String() }),
+    },
+  )
   .listen(8080);
 
 console.log(

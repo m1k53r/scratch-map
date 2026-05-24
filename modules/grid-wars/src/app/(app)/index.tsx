@@ -2,6 +2,14 @@ import Mapbox, { FillLayer } from "@rnmapbox/maps";
 import { useLocation } from "@/hooks/useLocation";
 import { authClient } from "@/lib/auth-client";
 import { useResume } from "@/hooks/useResume";
+import {
+  Toast,
+  toast,
+  useToastItem,
+  useToasts,
+  type ToastPosition,
+  type ToastT,
+} from "@tamagui/toast/v2";
 import { View, Button, Text, Input, Image, YStack, XStack } from "tamagui";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState, useRef, useEffect } from "react";
@@ -36,6 +44,7 @@ export default function Index() {
   const [lobbyMembers, setLobbyMembers] = useState<string[]>([]);
   const { theme } = useTheme();
   const lobbies = useLobby((state) => state.lobbies);
+  const [prevLobbyId, setPrevLobbyId] = useState("");
 
   useEffect(() => {
     if (!location || !lobbies) return;
@@ -53,13 +62,19 @@ export default function Index() {
       const inside = turf.booleanPointInPolygon(myLocation, area);
 
       if (inside) {
-        console.log("You are inside of lobby:" + lobby.id);
+        if (prevLobbyId != lobby.id) {
+          toast("Do you want to join lobby?", {
+            description: lobby.id,
+          });
+
+          setPrevLobbyId(lobby.id);
+        }
         return;
       }
     }
-    console.log("You are outside of polygon");
+    setPrevLobbyId("");
     return;
-  }, [location, lobbies]);
+  }, [location, lobbies, prevLobbyId]);
 
   let createLobby = async () => {
     const closedPolygon = [...points, points[0]];
@@ -153,278 +168,281 @@ export default function Index() {
   }
 
   return (
-    <View style={styles.container}>
-      <Mapbox.MapView
-        style={styles.map}
-        scaleBarEnabled={false}
-        onPress={handleMapPress}
-      >
-        <Mapbox.Camera
-          zoomLevel={15}
-          centerCoordinate={[
-            location.coords.longitude,
-            location.coords.latitude,
-          ]}
-        />
-        {lobbies.map((lobby) => (
-          <Mapbox.ShapeSource
-            key={lobby.id}
-            id={`lobby-${lobby.id}`}
-            shape={{
-              type: "Feature",
-              geometry: {
-                type: "Polygon",
-                coordinates: [lobby.coordinates],
-              },
-              properties: {},
-            }}
-          >
-            <FillLayer
-              id={`fill-${lobby.id}`}
-              style={{
-                fillColor: "red",
-                fillOpacity: 0.4,
-              }}
-            />
-          </Mapbox.ShapeSource>
-        ))}
-        {location && (
-          <Mapbox.MarkerView
-            coordinate={[location.coords.longitude, location.coords.latitude]}
-            style={{ display: "flex" }}
-          >
-            <Pressable style={styles.markerBox}>
-              {data?.user.image && (
-                <Image src={data.user.image} style={styles.avatar}></Image>
-              )}
-            </Pressable>
-          </Mapbox.MarkerView>
-        )}
-        {points && (
-          <Mapbox.ShapeSource
-            id="points-source"
-            shape={{
-              type: "FeatureCollection",
-              features: points.map((coords) => ({
+    <Toast position="top-center" theme={theme} visibleToasts={1}>
+      <ToastList />
+      <View style={styles.container}>
+        <Mapbox.MapView
+          style={styles.map}
+          scaleBarEnabled={false}
+          onPress={handleMapPress}
+        >
+          <Mapbox.Camera
+            zoomLevel={15}
+            centerCoordinate={[
+              location.coords.longitude,
+              location.coords.latitude,
+            ]}
+          />
+          {lobbies.map((lobby) => (
+            <Mapbox.ShapeSource
+              key={lobby.id}
+              id={`lobby-${lobby.id}`}
+              shape={{
                 type: "Feature",
                 geometry: {
-                  type: "Point",
-                  coordinates: coords,
+                  type: "Polygon",
+                  coordinates: [lobby.coordinates],
                 },
                 properties: {},
-              })),
-            }}
-          >
-            <Mapbox.CircleLayer
-              id="points-layer"
-              style={{
-                circleRadius: 6,
-                circleColor: "red",
-                circleStrokeWidth: 2,
-                circleStrokeColor: "white",
               }}
-            />
-          </Mapbox.ShapeSource>
-        )}
-        {lobbyArea && (
-          <Mapbox.ShapeSource id="source" shape={lobbyArea}>
-            <FillLayer
-              id="fill"
-              style={{
-                fillColor: "blue",
-                fillOpacity: 0.5,
+            >
+              <FillLayer
+                id={`fill-${lobby.id}`}
+                style={{
+                  fillColor: "red",
+                  fillOpacity: 0.4,
+                }}
+              />
+            </Mapbox.ShapeSource>
+          ))}
+          {location && (
+            <Mapbox.MarkerView
+              coordinate={[location.coords.longitude, location.coords.latitude]}
+              style={{ display: "flex" }}
+            >
+              <Pressable style={styles.markerBox}>
+                {data?.user.image && (
+                  <Image src={data.user.image} style={styles.avatar}></Image>
+                )}
+              </Pressable>
+            </Mapbox.MarkerView>
+          )}
+          {points && (
+            <Mapbox.ShapeSource
+              id="points-source"
+              shape={{
+                type: "FeatureCollection",
+                features: points.map((coords) => ({
+                  type: "Feature",
+                  geometry: {
+                    type: "Point",
+                    coordinates: coords,
+                  },
+                  properties: {},
+                })),
               }}
+            >
+              <Mapbox.CircleLayer
+                id="points-layer"
+                style={{
+                  circleRadius: 6,
+                  circleColor: "red",
+                  circleStrokeWidth: 2,
+                  circleStrokeColor: "white",
+                }}
+              />
+            </Mapbox.ShapeSource>
+          )}
+          {lobbyArea && (
+            <Mapbox.ShapeSource id="source" shape={lobbyArea}>
+              <FillLayer
+                id="fill"
+                style={{
+                  fillColor: "blue",
+                  fillOpacity: 0.5,
+                }}
+              />
+            </Mapbox.ShapeSource>
+          )}
+        </Mapbox.MapView>
+        {formMode === "open" && (
+          <View
+            style={styles.lobbyForm}
+            backgroundColor={theme === "dark" ? "black" : "white"}
+          >
+            <Input
+              value={timeLimit}
+              onChangeText={setTimeLimit}
+              backgroundColor={theme === "dark" ? "gray" : "white"}
+              placeholder="Time limit"
+              width={200}
+              margin="$2"
+              placeholderTextColor={theme === "dark" ? "white" : "black"}
+              keyboardType="numeric"
             />
-          </Mapbox.ShapeSource>
+
+            <Input
+              value={membersLimit}
+              onChangeText={setMembersLimit}
+              backgroundColor={theme === "dark" ? "gray" : "white"}
+              placeholder="Players number"
+              width={200}
+              margin="$2"
+              placeholderTextColor={theme === "dark" ? "white" : "black"}
+              keyboardType="numeric"
+            />
+
+            <Button
+              style={styles.formButton}
+              onPress={() => setFormMode("select_area")}
+            >
+              Select area
+            </Button>
+
+            <Button style={styles.formButton} onPress={createLobby}>
+              Create Lobby
+            </Button>
+          </View>
         )}
-      </Mapbox.MapView>
-      {formMode === "open" && (
-        <View
-          style={styles.lobbyForm}
-          backgroundColor={theme === "dark" ? "black" : "white"}
-        >
-          <Input
-            value={timeLimit}
-            onChangeText={setTimeLimit}
-            backgroundColor={theme === "dark" ? "gray" : "white"}
-            placeholder="Time limit"
-            width={200}
-            margin="$2"
-            placeholderTextColor={theme === "dark" ? "white" : "black"}
-            keyboardType="numeric"
-          />
-
-          <Input
-            value={membersLimit}
-            onChangeText={setMembersLimit}
-            backgroundColor={theme === "dark" ? "gray" : "white"}
-            placeholder="Players number"
-            width={200}
-            margin="$2"
-            placeholderTextColor={theme === "dark" ? "white" : "black"}
-            keyboardType="numeric"
-          />
-
-          <Button
-            style={styles.formButton}
-            onPress={() => setFormMode("select_area")}
+        {formMode === "waiting_for_players" && (
+          <View
+            style={styles.lobbyForm}
+            backgroundColor={theme === "dark" ? "#121212" : "#f5f5f5"}
           >
-            Select area
-          </Button>
+            <Text
+              fontSize="$6"
+              fontWeight="bold"
+              marginBottom="$3"
+              color={theme === "dark" ? "white" : "black"}
+            >
+              Lobby: Waiting for players...
+            </Text>
 
-          <Button style={styles.formButton} onPress={createLobby}>
-            Create Lobby
-          </Button>
-        </View>
-      )}
-      {formMode === "waiting_for_players" && (
-        <View
-          style={styles.lobbyForm}
-          backgroundColor={theme === "dark" ? "#121212" : "#f5f5f5"}
-        >
-          <Text
-            fontSize="$6"
-            fontWeight="bold"
-            marginBottom="$3"
-            color={theme === "dark" ? "white" : "black"}
-          >
-            Lobby: Waiting for players...
-          </Text>
+            <Text fontSize="$3" color="gray" marginBottom="$4">
+              Lobby ID: {myLobby}
+            </Text>
 
-          <Text fontSize="$3" color="gray" marginBottom="$4">
-            Lobby ID: {myLobby}
-          </Text>
-
-          <YStack
-            width="100%"
-            gap="$2"
-            paddingHorizontal="$4"
-            style={{ flex: 1, maxHeight: 300 }}
-          >
-            {!lobbyMembers || lobbyMembers?.length === 0 ? (
-              <Text color="gray" textAlign="center" marginVertical="$4">
-                No players inside yet...
-              </Text>
-            ) : (
-              lobbyMembers?.map((memberId, index) => (
-                <XStack
-                  key={index}
-                  backgroundColor={theme === "dark" ? "#222" : "white"}
-                  padding="$3"
-                  borderRadius="$4"
-                  alignItems="center"
-                  gap="$3"
-                  elevation="$1"
-                >
-                  <Ionicons name="person" size={20} color="red" />
-                  <Text
-                    color={theme === "dark" ? "white" : "black"}
-                    fontWeight="500"
+            <YStack
+              width="100%"
+              gap="$2"
+              paddingHorizontal="$4"
+              style={{ flex: 1, maxHeight: 300 }}
+            >
+              {!lobbyMembers || lobbyMembers?.length === 0 ? (
+                <Text color="gray" textAlign="center" marginVertical="$4">
+                  No players inside yet...
+                </Text>
+              ) : (
+                lobbyMembers?.map((memberId, index) => (
+                  <XStack
+                    key={index}
+                    backgroundColor={theme === "dark" ? "#222" : "white"}
+                    padding="$3"
+                    borderRadius="$4"
+                    alignItems="center"
+                    gap="$3"
+                    elevation="$1"
                   >
-                    {memberId === data?.user.id
-                      ? `${memberId} (You / Host)`
-                      : memberId}
-                  </Text>
-                </XStack>
-              ))
-            )}
-          </YStack>
+                    <Ionicons name="person" size={20} color="red" />
+                    <Text
+                      color={theme === "dark" ? "white" : "black"}
+                      fontWeight="500"
+                    >
+                      {memberId === data?.user.id
+                        ? `${data.user.name} (You / Host)`
+                        : memberId}
+                    </Text>
+                  </XStack>
+                ))
+              )}
+            </YStack>
 
-          <Button
-            theme="red"
-            style={styles.formButton}
-            marginTop="$4"
-            onPress={deleteLobby}
-          >
-            Cancel & Close Lobby
-          </Button>
-        </View>
-      )}
+            <Button
+              theme="red"
+              style={styles.formButton}
+              marginTop="$4"
+              onPress={deleteLobby}
+            >
+              Cancel & Close Lobby
+            </Button>
+          </View>
+        )}
 
-      <Button
-        circular
-        elevation="$4"
-        size="$5"
-        style={styles.fab}
-        onPress={() => {
-          if (formMode === "closed") {
-            setFormMode("open");
-            return;
-          }
+        <Button
+          circular
+          elevation="$4"
+          size="$5"
+          style={styles.fab}
+          onPress={() => {
+            if (formMode === "closed") {
+              setFormMode("open");
+              return;
+            }
 
-          if (formMode === "open") {
-            setFormMode("select_area");
-            return;
-          }
+            if (formMode === "open") {
+              setFormMode("select_area");
+              return;
+            }
 
-          if (formMode === "select_area") {
-            drawLobbyArea(null);
-            setFormMode("open");
-            return;
-          }
+            if (formMode === "select_area") {
+              drawLobbyArea(null);
+              setFormMode("open");
+              return;
+            }
 
-          if (formMode === "waiting_for_players") {
-            setFormMode("closed");
-            return;
-          }
-        }}
-      >
-        {formMode === "closed" && (
-          <Ionicons
-            name="play"
+            if (formMode === "waiting_for_players") {
+              setFormMode("closed");
+              return;
+            }
+          }}
+        >
+          {formMode === "closed" && (
+            <Ionicons
+              name="play"
+              size={24}
+              color={theme === "dark" ? "white" : "black"}
+            />
+          )}
+
+          {(formMode === "open" || formMode === "waiting_for_players") && (
+            <Ionicons
+              name="close"
+              size={24}
+              color={theme === "dark" ? "white" : "black"}
+            />
+          )}
+
+          {formMode === "select_area" && (
+            <Ionicons
+              name="checkmark"
+              size={24}
+              color={theme === "dark" ? "white" : "black"}
+            />
+          )}
+        </Button>
+        <Button
+          circular
+          elevation="$4"
+          size="$5"
+          style={styles.fabl}
+          onPress={() => {
+            setLobbyArea(null);
+            setPoints([]);
+          }}
+        >
+          <AntDesign
+            name="clear"
             size={24}
             color={theme === "dark" ? "white" : "black"}
           />
-        )}
-
-        {(formMode === "open" || formMode === "waiting_for_players") && (
+        </Button>
+        <Button
+          circular
+          elevation="$4"
+          size="$5"
+          style={styles.fabd}
+          onPress={() => {
+            deleteLobby();
+          }}
+        >
           <Ionicons
-            name="close"
+            name="remove"
             size={24}
             color={theme === "dark" ? "white" : "black"}
           />
-        )}
-
-        {formMode === "select_area" && (
-          <Ionicons
-            name="checkmark"
-            size={24}
-            color={theme === "dark" ? "white" : "black"}
-          />
-        )}
-      </Button>
-      <Button
-        circular
-        elevation="$4"
-        size="$5"
-        style={styles.fabl}
-        onPress={() => {
-          setLobbyArea(null);
-          setPoints([]);
-        }}
-      >
-        <AntDesign
-          name="clear"
-          size={24}
-          color={theme === "dark" ? "white" : "black"}
-        />
-      </Button>
-      <Button
-        circular
-        elevation="$4"
-        size="$5"
-        style={styles.fabd}
-        onPress={() => {
-          deleteLobby();
-        }}
-      >
-        <Ionicons
-          name="remove"
-          size={24}
-          color={theme === "dark" ? "white" : "black"}
-        />
-      </Button>
-    </View>
+        </Button>
+      </View>
+    </Toast>
   );
 }
 
@@ -488,3 +506,53 @@ export const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 0, 0, 0.5)",
   },
 });
+
+function ToastList() {
+  const { toasts } = useToasts();
+  const { theme } = useTheme();
+
+  return (
+    <View margin={16}>
+      {toasts.map((t, index) => (
+        <Toast.Item
+          key={t.id}
+          toast={t}
+          index={index}
+          animation="bouncy"
+          enterStyle={{
+            opacity: 0,
+            y: -25,
+            scale: 0.9,
+          }}
+          exitStyle={{
+            opacity: 0,
+            y: -20,
+            scale: 0.95,
+          }}
+          opacity={1}
+          y={0}
+          scale={1}
+          borderRadius="$6"
+          padding="$4"
+          borderWidth={1}
+          elevation="$6"
+          theme={theme}
+        >
+          <Toast.Title fontWeight="700">{t.title}</Toast.Title>
+
+          {t.description && (
+            <Toast.Description>{t.description}</Toast.Description>
+          )}
+          <View flexDirection="row" gap="$2" width="100%">
+            <Button backgroundColor="green" flex={1}>
+              Join
+            </Button>
+            <Button backgroundColor="red" flex={1}>
+              Skip
+            </Button>
+          </View>
+        </Toast.Item>
+      ))}
+    </View>
+  );
+}
