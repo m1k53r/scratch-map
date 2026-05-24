@@ -27,6 +27,7 @@ import {
 import { useTheme } from "@/stores/useTheme";
 import { useLobby } from "@/stores/useLobby";
 import * as turf from "@turf/turf";
+import { lobby } from "../../../../api/src/db/schema";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
@@ -62,7 +63,7 @@ export default function Index() {
       const inside = turf.booleanPointInPolygon(myLocation, area);
 
       if (inside) {
-        if (prevLobbyId != lobby.id) {
+        if (prevLobbyId !== lobby.id) {
           toast("Do you want to join lobby?", {
             description: lobby.id,
           });
@@ -510,6 +511,16 @@ export const styles = StyleSheet.create({
 function ToastList() {
   const { toasts } = useToasts();
   const { theme } = useTheme();
+  const { data } = authClient.useSession();
+
+  let joinLobby = async (lobbyId: string) => {
+    const res = await client["join-lobby"].post({
+      lobbyId: lobbyId,
+      joinerId: data?.user.id!,
+    });
+    console.log(lobbyId);
+    console.log(res);
+  };
 
   return (
     <View margin={16}>
@@ -544,7 +555,15 @@ function ToastList() {
             <Toast.Description>{t.description}</Toast.Description>
           )}
           <View flexDirection="row" gap="$2" width="100%">
-            <Button backgroundColor="green" flex={1}>
+            <Button
+              backgroundColor="green"
+              flex={1}
+              onPress={() => {
+                const description =
+                  typeof t.description === "string" ? t.description : "";
+                joinLobby(description);
+              }}
+            >
               Join
             </Button>
             <Button backgroundColor="red" flex={1}>

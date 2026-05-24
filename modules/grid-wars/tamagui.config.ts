@@ -10,7 +10,7 @@ export const config = createTamagui({
     light: {
       name: "light",
       background: "#fff",
-      color: "red",
+      color: "#000",
     },
     dark: {
       name: "dark",

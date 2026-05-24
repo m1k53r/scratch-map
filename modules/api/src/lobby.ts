@@ -35,6 +35,4 @@ export const generateJoinCode = () => {
   return customAlphabet("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", 6)();
 };
 
-export const joinLobby = (gameCode: string) => {};
-
 export const leaveLobby = async (lobbyId: string, userId: string) => {};

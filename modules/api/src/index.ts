@@ -117,6 +117,30 @@ export const app = new Elysia()
       }),
     },
   )
+  .post(
+    "join-lobby",
+    ({ body }) => {
+      if (body.lobbyId === "" || body.joinerId === "")
+        return { success: false };
+      const lobbyToJoin = Object.values(lobbies).some((lobby) =>
+        lobby.id.includes(body.lobbyId),
+      );
+      if (lobbyToJoin) {
+        const isUserAlreadyInLobby = Object.values(lobbies).some((lobby) =>
+          lobby.members.includes(body.joinerId),
+        );
+        if (isUserAlreadyInLobby) return { success: false };
+        lobbies[body.lobbyId].members.push(body.joinerId);
+        console.log(lobbies[body.lobbyId].members);
+      }
+    },
+    {
+      body: t.Object({
+        lobbyId: t.String(),
+        joinerId: t.String(),
+      }),
+    },
+  )
   .get("get-lobbies", () => {
     return lobbies;
   })
