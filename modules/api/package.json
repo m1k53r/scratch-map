@@ -14,7 +14,10 @@
     "better-auth": "^1.6.3",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
-    "elysia": "latest"
+    "elysia": "latest",
+    "nanoid": "^5.1.11",
+    "uuid": "^14.0.0",
+    "@gridwars/types": "workspace:*"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

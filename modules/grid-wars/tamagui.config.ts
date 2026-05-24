@@ -1,6 +1,7 @@
 import { Light } from "@rnmapbox/maps";
 import { defaultConfig } from "@tamagui/config/v5";
-import { createTamagui } from "tamagui";
+import { createTamagui, createTokens } from "tamagui";
+import { animations } from "@tamagui/config/v5-css";
 
 // default config for now, should we customize it?
 export const config = createTamagui({
@@ -9,7 +10,7 @@ export const config = createTamagui({
     light: {
       name: "light",
       background: "#fff",
-      color: "red",
+      color: "#000",
     },
     dark: {
       name: "dark",
@@ -17,4 +18,5 @@ export const config = createTamagui({
       color: "#fff",
     },
   },
+  animations,
 });

@@ -1,5 +1,15 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text, timestamp, boolean, index } from "drizzle-orm/pg-core";
+import { jsonb, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgEnum, uuid } from "drizzle-orm/pg-core";
+import { varchar } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  boolean,
+  index,
+  doublePrecision,
+} from "drizzle-orm/pg-core";
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
@@ -73,9 +83,47 @@ export const verification = pgTable(
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
+export const lobbyStatusEnum = pgEnum("lobby_status", [
+  "waiting",
+  "active",
+  "game_started",
+]);
+
+export const lobby = pgTable("lobby", {
+  id: uuid("id").primaryKey(),
+  hostId: text("host_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  lobbyStatus: lobbyStatusEnum("lobby_status").notNull(),
+  isPublic: boolean("is_public").default(false).notNull(),
+  joinCode: varchar("join_code", { length: 6 }).notNull().unique(),
+  minLat: doublePrecision("min_lat").notNull(),
+  minLng: doublePrecision("min_lng").notNull(),
+  maxLat: doublePrecision("max_lat").notNull(),
+  maxLng: doublePrecision("max_lng").notNull(),
+  settings: jsonb("settings").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const lobbyMember = pgTable(
+  "lobby_member",
+  {
+    id: uuid("id").primaryKey(),
+    lobbyId: text("lobby_id")
+      .notNull()
+      .references(() => lobby.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("unique_lobby_user").on(table.lobbyId, table.userId)],
+);
+
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
+  lobbyMembers: many(lobbyMember),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({

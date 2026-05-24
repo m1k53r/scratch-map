@@ -10,9 +10,15 @@ import {
   DefaultTheme,
   ThemeProvider,
 } from "@react-navigation/native";
+import { useEffect } from "react";
+import { initWebSocket } from "@/lib/websocket-client";
 
 export default function Root() {
   const { theme } = useTheme();
+
+  useEffect(() => {
+    initWebSocket();
+  }, []);
 
   return (
     <TamaguiProvider config={config} defaultTheme={theme}>
@@ -28,7 +34,6 @@ export default function Root() {
 
 function RootNavigator() {
   const { data } = authClient.useSession();
-  const { theme } = useTheme();
 
   return (
     <Stack>
@@ -37,7 +42,7 @@ function RootNavigator() {
       </Stack.Protected>
 
       <Stack.Protected guard={!data}>
-        <Stack.Screen name="sign-in" />
+        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
       </Stack.Protected>
     </Stack>
   );
