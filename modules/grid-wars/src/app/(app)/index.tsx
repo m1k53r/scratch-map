@@ -62,11 +62,13 @@ export default function Index() {
       };
       const inside = turf.booleanPointInPolygon(myLocation, area);
 
-      if (inside) {
+      if (inside && lobby.hostId !== data?.user.id) {
         if (prevLobbyId !== lobby.id) {
           toast("Do you want to join lobby?", {
             description: lobby.id,
           });
+          setFormMode("waiting_for_players");
+          setLobbyMembers([lobby.hostId, data?.user.id || ""]);
 
           setPrevLobbyId(lobby.id);
         }
@@ -86,6 +88,7 @@ export default function Index() {
       membersLimit: Number(membersLimit),
       timeLimit: Number(timeLimit),
     });
+    console.log(res.data);
 
     if (res.data.success) {
       console.log(res.data);
@@ -111,9 +114,20 @@ export default function Index() {
     const res = await client["delete-lobby"].post({
       lobbyId: myLobby,
     });
+    setFormMode("closed");
 
     console.log(res.data);
   };
+
+  let leaveLobby = () => {
+    // TODO: add endpoint to leave lobby
+    // TODO: actually, also remove "delete-lobby" endpoint and make it
+    // so that an empty lobby will get removed by the backend.
+    // the next person will become the host, when previous host leaves
+    setFormMode("closed");
+  };
+
+  let startGame = () => {};
 
   let getLobbyMembers = async () => {
     const res = await client["get-lobby-members"].post({
@@ -149,6 +163,16 @@ export default function Index() {
         properties: {},
       });
     }
+  };
+
+  const formatMembers = (memberId) => {
+    if (memberId === lobbyMembers[0] && memberId === data.user.id) {
+      return `${data?.user.name} (You / Host)`;
+    } else if (memberId === lobbyMembers[0]) {
+      return `${memberId} (Host)`;
+    } else if (memberId === data.user.id) {
+      return `${data?.user.name} (You)`;
+    } else return memberId;
   };
 
   if (!location) {
@@ -339,22 +363,35 @@ export default function Index() {
                       color={theme === "dark" ? "white" : "black"}
                       fontWeight="500"
                     >
-                      {memberId === data?.user.id
-                        ? `${data.user.name} (You / Host)`
-                        : memberId}
+                      {formatMembers(memberId)}
                     </Text>
                   </XStack>
                 ))
               )}
             </YStack>
 
+            {lobbyMembers[0] === data?.user.id && (
+              <Button
+                theme="red"
+                style={styles.formButton}
+                marginTop="$4"
+                onPress={startGame}
+              >
+                Start game
+              </Button>
+            )}
+
             <Button
               theme="red"
               style={styles.formButton}
               marginTop="$4"
-              onPress={deleteLobby}
+              onPress={
+                lobbyMembers[0] === data?.user.id ? deleteLobby : leaveLobby
+              }
             >
-              Cancel & Close Lobby
+              {lobbyMembers[0] === data?.user.id
+                ? "Close Lobby"
+                : "Leave lobby"}
             </Button>
           </View>
         )}

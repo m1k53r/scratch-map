@@ -7,9 +7,51 @@ export enum WebSocketCodes {
   LOBBY_CREATED,
   LOBBY_CLOSED,
   LOBBIES_SYNC,
+  START_GAME,
+  END_GAME,
+  COLLECT_FLAG,
 }
 
-export interface MessageType {
+export enum WebSocketResponses {
+  GAME_STARTED,
+}
+
+export interface MessageBody { }
+
+export interface MessageResponse { }
+
+export interface LobbiesSyncBody extends MessageBody {
+  id: string;
+  coordinates: [number, number][];
+  hostId: string;
+}
+
+export interface PlayerJoinedBody extends MessageBody {
+  lobbyId: string;
+  playerId: string;
+}
+
+export interface GameStateChangeBody extends MessageBody {
+  lobbyId: string;
+}
+
+export interface CollectFlagBody extends MessageBody {
+  lobbyId: string;
+  playerId: string;
+  flagCoordinates: [number, number]
+}
+
+export interface MessageType<T extends MessageBody> {
   code: WebSocketCodes;
-  body: unknown;
+  body: T;
+}
+
+
+export interface GameStateChangeResponse extends MessageResponse {
+  flags: number[][];
+}
+
+export interface MessageTypeResponse<T extends MessageResponse> {
+  code: WebSocketResponses;
+  body: T;
 }

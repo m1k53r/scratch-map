@@ -3,6 +3,7 @@ import { create } from "zustand";
 export type LobbyOnMap = {
   id: string;
   coordinates: [number, number][];
+  hostId: string;
 };
 
 type LobbyStore = {

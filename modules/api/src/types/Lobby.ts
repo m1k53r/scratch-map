@@ -8,6 +8,7 @@ export type Lobby = {
   // first member is always the host
   members: string[];
   createdAt: Date;
+  flags: number[][];
 };
 
 interface Lobbies {

@@ -4,7 +4,24 @@ import { auth } from "./auth";
 import cors from "@elysiajs/cors";
 import { createLobby } from "./lobby";
 import Lobbies, { Lobby } from "./types/Lobby";
-import { MessageType, WebSocketCodes } from "@gridwars/types";
+import { randomPoint } from "@turf/random";
+import { pointsWithinPolygon } from "@turf/points-within-polygon";
+import { bbox } from "@turf/bbox";
+import { lineString, polygon } from "@turf/helpers";
+import type { Position } from "geojson";
+import {
+  CollectFlagBody,
+  GameStateChangeBody,
+  GameStateChangeResponse,
+  LobbiesSyncBody,
+  MessageBody,
+  MessageType,
+  MessageTypeResponse,
+  PlayerJoinedBody as PlayerTransitionBody,
+  WebSocketCodes,
+  WebSocketResponses,
+} from "@gridwars/types";
+import { generateRandomPoints } from "./utils";
 
 let lobbies: Lobbies = {};
 const testLobby: Lobby = {
@@ -23,6 +40,7 @@ const testLobby: Lobby = {
     timeLimit: 10,
   },
   createdAt: new Date(Date.now()),
+  flags: [],
 };
 lobbies[testLobby.id] = testLobby;
 
@@ -41,11 +59,72 @@ export const websocket = new Elysia({ name: "websocket" })
   .ws("/ws", {
     open(ws) {
       wsClients.add(ws);
-      const message: MessageType = {
+      const message: MessageType<Array<LobbiesSyncBody>> = {
         code: WebSocketCodes.LOBBIES_SYNC,
-        body: Object.values(lobbies),
+        body: Object.values(lobbies).map((lobby) => {
+          return {
+            id: lobby.id,
+            coordinates: lobby.coordinates,
+            hostId: lobby.members[0],
+          };
+        }),
       };
       ws.send(JSON.stringify(message));
+    },
+    message(ws, message: MessageType<MessageBody>) {
+      switch (message.code) {
+        case WebSocketCodes.PLAYER_JOINED:
+          const playerJoined = message.body as PlayerTransitionBody;
+          ws.subscribe(playerJoined.lobbyId);
+          ws.publish(playerJoined.lobbyId, "Player joined blah blah");
+          break;
+        case WebSocketCodes.PLAYER_LEFT:
+          const playerLeft = message.body as PlayerTransitionBody;
+          ws.unsubscribe(playerLeft.lobbyId);
+          ws.publish(playerLeft.lobbyId, "Player left blah blah");
+          break;
+        case WebSocketCodes.START_GAME:
+          const startGame = message.body as GameStateChangeBody;
+          const lobby = lobbies[startGame.lobbyId];
+          lobby.lobbyStatus = "game_started";
+
+          const inside = generateRandomPoints(lobby.coordinates);
+          lobby.flags = [
+            inside.features[0].geometry.coordinates as number[],
+            inside.features[1].geometry.coordinates as number[],
+          ];
+
+          // Send message when game ends
+          setTimeout(
+            () => {
+              ws.publish(startGame.lobbyId, "Game ended blah blah");
+              delete lobbies[startGame.lobbyId];
+            },
+            lobby.settings.timeLimit * 1000 * 60,
+          );
+
+          let startResponse: MessageTypeResponse<GameStateChangeResponse> = {
+            code: WebSocketResponses.GAME_STARTED,
+            body: {
+              flags: lobby.flags,
+            },
+          };
+          ws.publish(startGame.lobbyId, startResponse);
+          break;
+        case WebSocketCodes.END_GAME:
+          // not needed?
+          break;
+        case WebSocketCodes.COLLECT_FLAG:
+          const collectFlag = message.body as CollectFlagBody;
+          const flagLobby = lobbies[collectFlag.lobbyId];
+          ws.publish(
+            collectFlag.lobbyId,
+            "Flag collected, here's new flag blah blah",
+          );
+          break;
+        default:
+          console.error("Unknown message type");
+      }
     },
     close(ws) {
       wsClients.delete(ws);
@@ -101,6 +180,7 @@ export const app = new Elysia()
         body: {
           id: newLobby.id,
           coordinates: newLobby.coordinates,
+          hostId: newLobby.members[0],
         },
       };
       broadcast(message);
@@ -177,6 +257,22 @@ export const app = new Elysia()
         return { success: false };
       }
       return { success: true, members: lobby.members };
+    },
+    {
+      body: t.Object({ lobbyId: t.String() }),
+    },
+  )
+  .post(
+    "start-game",
+    ({ body }) => {
+      const lobby = lobbies[body.lobbyId];
+      lobby.lobbyStatus = "game_started";
+      setTimeout(
+        () => {
+          console.log("game ended");
+        },
+        lobby.settings.timeLimit * 1000 * 60,
+      );
     },
     {
       body: t.Object({ lobbyId: t.String() }),
