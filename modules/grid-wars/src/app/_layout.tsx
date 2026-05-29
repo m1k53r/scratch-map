@@ -5,20 +5,11 @@ import { authClient } from "@/lib/auth-client";
 import { TamaguiProvider, Theme } from "tamagui";
 import { config } from "@/../tamagui.config";
 import { useTheme } from "@/stores/useTheme";
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
-import { useEffect } from "react";
-import { initWebSocket } from "@/lib/websocket-client";
+import { useWebSocket } from "@/lib/websocket-client";
 
 export default function Root() {
   const { theme } = useTheme();
-
-  useEffect(() => {
-    initWebSocket();
-  }, []);
+  useWebSocket();
 
   return (
     <TamaguiProvider config={config} defaultTheme={theme}>

@@ -1,33 +1,17 @@
 import Mapbox, { FillLayer } from "@rnmapbox/maps";
 import { useLocation } from "@/hooks/useLocation";
 import { authClient } from "@/lib/auth-client";
-import { useResume } from "@/hooks/useResume";
-import {
-  Toast,
-  toast,
-  useToastItem,
-  useToasts,
-  type ToastPosition,
-  type ToastT,
-} from "@tamagui/toast/v2";
+import { Toast, toast, useToasts } from "@tamagui/toast/v2";
 import { View, Button, Text, Input, Image, YStack, XStack } from "tamagui";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useState, useRef, useEffect } from "react";
-import { set } from "better-auth";
 import { Feature, Polygon, Point } from "geojson";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { client } from "@/lib/api-client";
-import {
-  AppState,
-  Dimensions,
-  Linking,
-  Pressable,
-  StyleSheet,
-} from "react-native";
+import { Dimensions, Linking, Pressable, StyleSheet } from "react-native";
 import { useTheme } from "@/stores/useTheme";
 import { useLobby } from "@/stores/useLobby";
 import * as turf from "@turf/turf";
-import { lobby } from "../../../../api/src/db/schema";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
@@ -56,19 +40,22 @@ export default function Index() {
     ];
 
     for (const lobby of lobbies) {
+      // omit all lobbies that are either active or finished
+      if (lobby.state !== "waiting") continue;
+
       const area: Polygon = {
         type: "Polygon",
         coordinates: [lobby.coordinates],
       };
       const inside = turf.booleanPointInPolygon(myLocation, area);
 
-      if (inside && lobby.hostId !== data?.user.id) {
+      if (inside && lobby.members[0] !== data?.user.id) {
         if (prevLobbyId !== lobby.id) {
           toast("Do you want to join lobby?", {
             description: lobby.id,
           });
           setFormMode("waiting_for_players");
-          setLobbyMembers([lobby.hostId, data?.user.id || ""]);
+          setLobbyMembers([...lobby.members, data?.user.id || ""]);
 
           setPrevLobbyId(lobby.id);
         }
@@ -82,7 +69,6 @@ export default function Index() {
   let createLobby = async () => {
     const closedPolygon = [...points, points[0]];
     const res = await client["create-lobby"].post({
-      hostId: data?.user.id!,
       isPublic: false,
       coordinates: closedPolygon,
       membersLimit: Number(membersLimit),
@@ -165,8 +151,8 @@ export default function Index() {
     }
   };
 
-  const formatMembers = (memberId) => {
-    if (memberId === lobbyMembers[0] && memberId === data.user.id) {
+  const formatMembers = (memberId: string) => {
+    if (memberId === lobbyMembers[0] && memberId === data?.user.id) {
       return `${data?.user.name} (You / Host)`;
     } else if (memberId === lobbyMembers[0]) {
       return `${memberId} (Host)`;

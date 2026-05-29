@@ -1,42 +1,59 @@
 import { client } from "./api-client";
-import { MessageType, WebSocketCodes } from "@gridwars/types";
+import {
+  GameStateChangeResponse,
+  MessageResponse,
+  MessageTypeResponse,
+  WebSocketResponses,
+} from "@gridwars/types";
 import { useLobby, LobbyOnMap } from "@/stores/useLobby";
+import { useEffect } from "react";
 
-let initialized = false;
+export function useWebSocket() {
+  const addLobby = useLobby((state) => state.addLobby);
+  const removeLobby = useLobby((state) => state.removeLobby);
+  const setLobbies = useLobby((state) => state.setLobbies);
+  const updateLobby = useLobby((state) => state.updateLobbyState);
 
-export function initWebSocket() {
-  if (initialized) return;
+  useEffect(() => {
+    const wsClient = client.ws.subscribe();
 
-  initialized = true;
+    console.log("Connection initialized");
 
-  const wsClient = client.ws.subscribe();
+    wsClient.subscribe((event) => {
+      const message = event.data as MessageTypeResponse<MessageResponse>;
+      switch (message.code) {
+        case WebSocketResponses.PLAYER_JOINED:
+          console.log("sth");
+          break;
+        case WebSocketResponses.PLAYER_LEFT:
+          console.log("sth");
+          break;
+        case WebSocketResponses.LOBBY_CREATED:
+          addLobby(message.body as LobbyOnMap);
+          break;
+        case WebSocketResponses.LOBBY_CLOSED:
+          removeLobby(message.body as string);
+          break;
+        case WebSocketResponses.LOBBIES_SYNC:
+          setLobbies(message.body as LobbyOnMap[]);
+          break;
+        case WebSocketResponses.GAME_STARTED:
+          updateLobby("playing");
+          break;
+        case WebSocketResponses.GAME_ENDED:
+          updateLobby("finished");
+          break;
+        case WebSocketResponses.NEW_FLAG:
+          break;
+        default:
+          console.log("bomba");
+          break;
+      }
+    });
 
-  console.log("Connection initialized");
-
-  wsClient.subscribe((event) => {
-    const message = event.data as MessageType;
-    switch (message.code) {
-      case WebSocketCodes.PLAYER_JOINED:
-        console.log("sth");
-        break;
-      case WebSocketCodes.PLAYER_LEFT:
-        console.log("sth");
-        break;
-      case WebSocketCodes.LOBBY_CREATED:
-        useLobby.getState().addLobby(message.body as LobbyOnMap);
-        break;
-      case WebSocketCodes.LOBBY_CLOSED:
-        useLobby.getState().removeLobby(message.body as string);
-        break;
-      case WebSocketCodes.LOBBIES_SYNC:
-        useLobby.getState().setLobbies(message.body as LobbyOnMap[]);
-        break;
-      case WebSocketCodes.OPENED_CONNECTION:
-        break;
-      case WebSocketCodes.CLOSED_CONNECTION:
-        break;
-      default:
-        console.log("bomba");
-    }
-  });
+    return () => {
+      console.log("Connection dropped");
+      wsClient.close();
+    };
+  }, []);
 }

@@ -1,22 +1,31 @@
+import { gameState } from "@gridwars/types";
 import { create } from "zustand";
 
 export type LobbyOnMap = {
   id: string;
   coordinates: [number, number][];
-  hostId: string;
+  members: string[];
+  state: gameState;
 };
 
-type LobbyStore = {
+interface State {
   lobbies: LobbyOnMap[];
+  currentLobby: string | null;
+}
+
+interface Action {
   addLobby: (lobby: LobbyOnMap) => void;
   removeLobby: (id: string) => void;
   setLobbies: (lobbies: LobbyOnMap[]) => void;
-};
+  updateLobbyState: (gameState: gameState) => void;
+  setCurrentLobby: (id: string) => void;
+}
 
-export const useLobby = create<LobbyStore>((set) => ({
+export const useLobby = create<State & Action>((set) => ({
   lobbies: [],
+  currentLobby: null,
 
-  addLobby: (lobby) =>
+  addLobby: (lobby: LobbyOnMap) =>
     set((state) => {
       const exists = state.lobbies.some((l) => l.id === lobby.id);
 
@@ -29,7 +38,7 @@ export const useLobby = create<LobbyStore>((set) => ({
       };
     }),
 
-  removeLobby: (lobbyId) => {
+  removeLobby: (lobbyId: string) => {
     set((state) => {
       const exists = state.lobbies.some((l) => l.id === lobbyId);
 
@@ -42,5 +51,19 @@ export const useLobby = create<LobbyStore>((set) => ({
       };
     });
   },
-  setLobbies: (lobbies) => set({ lobbies }),
+  setLobbies: (lobbies: LobbyOnMap[]) => set({ lobbies }),
+  updateLobbyState: (gameState: gameState) => {
+    set((state) => ({
+      lobbies: state.lobbies.map((lobby) =>
+        lobby.id === state.currentLobby
+          ? { ...lobby, state: gameState }
+          : lobby,
+      ),
+    }));
+  },
+  setCurrentLobby: (id: string) => {
+    set(() => ({
+      currentLobby: id,
+    }));
+  },
 }));
