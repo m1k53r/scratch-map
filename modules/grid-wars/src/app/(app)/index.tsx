@@ -1,35 +1,58 @@
 import Mapbox, { FillLayer } from "@rnmapbox/maps";
 import { useLocation } from "@/hooks/useLocation";
 import { authClient } from "@/lib/auth-client";
-import { Toast, toast, useToasts } from "@tamagui/toast/v2";
-import { View, Button, Text, Input, Image, YStack, XStack } from "tamagui";
+import { Toast, toast } from "@tamagui/toast/v2";
+import {
+  View,
+  Button,
+  Text,
+  Input,
+  Image,
+  YStack,
+  XStack,
+  Spinner,
+} from "tamagui";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState, useRef, useEffect } from "react";
-import { Feature, Polygon, Point } from "geojson";
+import { useState, useEffect } from "react";
+import { Polygon } from "geojson";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { client } from "@/lib/api-client";
 import { Dimensions, Linking, Pressable, StyleSheet } from "react-native";
 import { useTheme } from "@/stores/useTheme";
 import { useLobby } from "@/stores/useLobby";
 import * as turf from "@turf/turf";
+import ToastList from "@/components/ToastList";
+import { FormMode } from "@/types/formMode";
+import { useSocket } from "@/context/SocketContext";
+import { LobbyParameters } from "@/types/lobbyParameters";
+import { useCurrentLobby } from "@/hooks/useCurrentLobby";
+import {
+  CollectFlagBody,
+  GameStateChangeBody,
+  MessageType,
+  PlayerJoinedBody,
+  WebSocketCodes,
+} from "@gridwars/types";
 
 Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_API_KEY!);
 
 export default function Index() {
-  const { data } = authClient.useSession();
-  const [timeLimit, setTimeLimit] = useState("");
-  const [membersLimit, setMembersLimit] = useState("");
-  const { location, permissionStatus } = useLocation();
-  const [formMode, setFormMode] = useState<
-    "open" | "closed" | "select_area" | "waiting_for_players"
-  >("closed");
-  const [lobbyArea, setLobbyArea] = useState<Feature<Polygon> | null>(null);
-  const [points, setPoints] = useState<[number, number][]>([]);
-  const [myLobby, setMyLobby] = useState("");
-  const [lobbyMembers, setLobbyMembers] = useState<string[]>([]);
   const { theme } = useTheme();
-  const lobbies = useLobby((state) => state.lobbies);
+  const { data } = authClient.useSession();
+  const { location, permissionStatus } = useLocation();
+  const socket = useSocket();
+  const [formMode, setFormMode] = useState<FormMode>("closed");
+  const [params, setParams] = useState<LobbyParameters>({
+    timeLimit: 0,
+    membersLimit: 0,
+    points: [],
+    lobbyArea: null,
+  });
   const [prevLobbyId, setPrevLobbyId] = useState("");
+  const lobbies = useLobby((state) => state.lobbies);
+  const setMyLobby = useLobby((state) => state.setCurrentLobby);
+  const addMembers = useLobby((state) => state.addMembers);
+  const myLobby = useCurrentLobby();
 
   useEffect(() => {
     if (!location || !lobbies) return;
@@ -40,7 +63,7 @@ export default function Index() {
     ];
 
     for (const lobby of lobbies) {
-      // omit all lobbies that are either active or finished
+      // omit rendering all lobbies that are either active or finished
       if (lobby.state !== "waiting") continue;
 
       const area: Polygon = {
@@ -54,51 +77,78 @@ export default function Index() {
           toast("Do you want to join lobby?", {
             description: lobby.id,
           });
-          setFormMode("waiting_for_players");
-          setLobbyMembers([...lobby.members, data?.user.id || ""]);
-
           setPrevLobbyId(lobby.id);
         }
         return;
       }
     }
     setPrevLobbyId("");
-    return;
   }, [location, lobbies, prevLobbyId]);
 
+  useEffect(() => {
+    if (!myLobby || myLobby.state !== "playing" || !location) return;
+
+    for (const flag of myLobby.flags) {
+      let d = turf.distance(
+        [location.coords.longitude, location.coords.latitude],
+        flag,
+        { units: "meters" },
+      );
+      if (d < 50) {
+        const data: MessageType<CollectFlagBody> = {
+          code: WebSocketCodes.COLLECT_FLAG,
+          body: {
+            lobbyId: myLobby.id,
+            flagCoordinates: [flag[0], flag[1]],
+          },
+        };
+        socket.ref.current?.send(data);
+      }
+    }
+  }, [location, myLobby]);
+
+  useEffect(() => {
+    if (myLobby?.state === "playing") {
+      setFormMode("closed");
+    }
+  }, [myLobby?.state]);
+
   let createLobby = async () => {
-    const closedPolygon = [...points, points[0]];
+    const closedPolygon = [...params.points, params.points[0]];
     const res = await client["create-lobby"].post({
       isPublic: false,
       coordinates: closedPolygon,
-      membersLimit: Number(membersLimit),
-      timeLimit: Number(timeLimit),
+      membersLimit: Number(params.membersLimit),
+      timeLimit: Number(params.timeLimit),
     });
-    console.log(res.data);
+    console.log("create lobby");
+    console.log(res);
 
-    if (res.data.success) {
+    if (res.data?.success) {
       console.log(res.data);
-      setMyLobby(res.data.id as string);
+      setMyLobby(res.data?.id as string);
       setFormMode("waiting_for_players");
       const initialMembers = await getLobbyMembers();
       const currentUserId = data?.user.id;
 
       if (currentUserId && !initialMembers.includes(currentUserId)) {
-        setLobbyMembers([currentUserId, ...initialMembers]);
+        addMembers([currentUserId, ...initialMembers]);
       } else {
-        setLobbyMembers(initialMembers);
+        addMembers(initialMembers);
       }
 
-      setTimeLimit(0);
-      setMembersLimit(0);
-      setPoints([]);
-      setLobbyArea(null);
+      setParams(() => ({
+        timeLimit: 0,
+        membersLimit: 0,
+        points: [],
+        lobbyArea: null,
+      }));
     }
   };
 
   let deleteLobby = async () => {
     const res = await client["delete-lobby"].post({
-      lobbyId: myLobby,
+      lobbyId: myLobby?.id || "",
     });
     setFormMode("closed");
 
@@ -106,18 +156,41 @@ export default function Index() {
   };
 
   let leaveLobby = () => {
+    if (!myLobby) return;
+
     // TODO: add endpoint to leave lobby
     // TODO: actually, also remove "delete-lobby" endpoint and make it
     // so that an empty lobby will get removed by the backend.
     // the next person will become the host, when previous host leaves
     setFormMode("closed");
+    setMyLobby(null);
+
+    const data: MessageType<PlayerJoinedBody> = {
+      code: WebSocketCodes.PLAYER_LEFT,
+      body: {
+        lobbyId: myLobby.id,
+      },
+    };
+    socket.ref.current?.send(data);
   };
 
-  let startGame = () => {};
+  let startGame = () => {
+    if (!myLobby) return;
+
+    setFormMode("closed");
+
+    const data: MessageType<GameStateChangeBody> = {
+      code: WebSocketCodes.START_GAME,
+      body: {
+        lobbyId: myLobby.id,
+      },
+    };
+    socket.ref.current?.send(data);
+  };
 
   let getLobbyMembers = async () => {
     const res = await client["get-lobby-members"].post({
-      lobbyId: myLobby,
+      lobbyId: myLobby?.id || "",
     });
     console.log(res.data);
     return (res.data?.members as string[]) ?? [];
@@ -129,7 +202,10 @@ export default function Index() {
     const coords = e?.geometry?.coordinates;
     if (!coords) return;
 
-    setPoints((prev) => [...prev, coords]);
+    setParams((prev) => ({
+      ...prev,
+      points: [...prev.points, coords],
+    }));
   };
 
   let drawLobbyArea = (e: any) => {
@@ -137,26 +213,31 @@ export default function Index() {
 
     setFormMode("select_area");
 
-    const closedPolygon = [...points, points[0]];
+    const closedPolygon = [...params.points, params.points[0]];
 
-    if (points.length >= 3) {
-      setLobbyArea({
-        type: "Feature",
-        geometry: {
-          type: "Polygon",
-          coordinates: [closedPolygon],
+    if (params.points.length >= 3) {
+      setParams((prev) => ({
+        ...prev,
+        lobbyArea: {
+          type: "Feature",
+          geometry: {
+            type: "Polygon",
+            coordinates: [closedPolygon],
+          },
+          properties: {},
         },
-        properties: {},
-      });
+      }));
     }
   };
 
   const formatMembers = (memberId: string) => {
-    if (memberId === lobbyMembers[0] && memberId === data?.user.id) {
+    if (!myLobby || !myLobby.id) return;
+
+    if (memberId === myLobby.members[0] && memberId === data?.user.id) {
       return `${data?.user.name} (You / Host)`;
-    } else if (memberId === lobbyMembers[0]) {
+    } else if (memberId === myLobby.members[0]) {
       return `${memberId} (Host)`;
-    } else if (memberId === data.user.id) {
+    } else if (memberId === data?.user.id) {
       return `${data?.user.name} (You)`;
     } else return memberId;
   };
@@ -164,7 +245,9 @@ export default function Index() {
   if (!location) {
     return (
       <View>
-        <Text>Loading location...</Text>
+        <Text>
+          <Spinner size="large" />
+        </Text>
       </View>
     );
   }
@@ -180,7 +263,7 @@ export default function Index() {
 
   return (
     <Toast position="top-center" theme={theme} visibleToasts={1}>
-      <ToastList />
+      <ToastList setFormMode={setFormMode} />
       <View style={styles.container}>
         <Mapbox.MapView
           style={styles.map}
@@ -228,12 +311,19 @@ export default function Index() {
               </Pressable>
             </Mapbox.MarkerView>
           )}
-          {points && (
+          {myLobby &&
+            myLobby.state === "playing" &&
+            myLobby.flags.map((flag) => (
+              <Mapbox.MarkerView coordinate={flag}>
+                <Text style={{ fontSize: 24 }}>🚩</Text>
+              </Mapbox.MarkerView>
+            ))}
+          {params.points && (
             <Mapbox.ShapeSource
               id="points-source"
               shape={{
                 type: "FeatureCollection",
-                features: points.map((coords) => ({
+                features: params.points.map((coords) => ({
                   type: "Feature",
                   geometry: {
                     type: "Point",
@@ -254,8 +344,8 @@ export default function Index() {
               />
             </Mapbox.ShapeSource>
           )}
-          {lobbyArea && (
-            <Mapbox.ShapeSource id="source" shape={lobbyArea}>
+          {params.lobbyArea && (
+            <Mapbox.ShapeSource id="source" shape={params.lobbyArea}>
               <FillLayer
                 id="fill"
                 style={{
@@ -272,8 +362,10 @@ export default function Index() {
             backgroundColor={theme === "dark" ? "black" : "white"}
           >
             <Input
-              value={timeLimit}
-              onChangeText={setTimeLimit}
+              value={params.timeLimit}
+              onChangeText={(text) =>
+                setParams((prev) => ({ ...prev, timeLimit: Number(text) }))
+              }
               backgroundColor={theme === "dark" ? "gray" : "white"}
               placeholder="Time limit"
               width={200}
@@ -283,8 +375,10 @@ export default function Index() {
             />
 
             <Input
-              value={membersLimit}
-              onChangeText={setMembersLimit}
+              value={params.membersLimit}
+              onChangeText={(text) =>
+                setParams((prev) => ({ ...prev, membersLimit: Number(text) }))
+              }
               backgroundColor={theme === "dark" ? "gray" : "white"}
               placeholder="Players number"
               width={200}
@@ -320,7 +414,7 @@ export default function Index() {
             </Text>
 
             <Text fontSize="$3" color="gray" marginBottom="$4">
-              Lobby ID: {myLobby}
+              Lobby ID: {myLobby?.id}
             </Text>
 
             <YStack
@@ -329,12 +423,12 @@ export default function Index() {
               paddingHorizontal="$4"
               style={{ flex: 1, maxHeight: 300 }}
             >
-              {!lobbyMembers || lobbyMembers?.length === 0 ? (
+              {!myLobby?.members || myLobby.members?.length === 0 ? (
                 <Text color="gray" textAlign="center" marginVertical="$4">
                   No players inside yet...
                 </Text>
               ) : (
-                lobbyMembers?.map((memberId, index) => (
+                myLobby.members?.map((memberId, index) => (
                   <XStack
                     key={index}
                     backgroundColor={theme === "dark" ? "#222" : "white"}
@@ -356,7 +450,7 @@ export default function Index() {
               )}
             </YStack>
 
-            {lobbyMembers[0] === data?.user.id && (
+            {myLobby?.members[0] === data?.user.id && (
               <Button
                 theme="red"
                 style={styles.formButton}
@@ -372,10 +466,10 @@ export default function Index() {
               style={styles.formButton}
               marginTop="$4"
               onPress={
-                lobbyMembers[0] === data?.user.id ? deleteLobby : leaveLobby
+                myLobby?.members[0] === data?.user.id ? deleteLobby : leaveLobby
               }
             >
-              {lobbyMembers[0] === data?.user.id
+              {myLobby?.members[0] === data?.user.id
                 ? "Close Lobby"
                 : "Leave lobby"}
             </Button>
@@ -440,8 +534,11 @@ export default function Index() {
           size="$5"
           style={styles.fabl}
           onPress={() => {
-            setLobbyArea(null);
-            setPoints([]);
+            setParams((prev) => ({
+              ...prev,
+              points: [],
+              lobbyArea: null,
+            }));
           }}
         >
           <AntDesign
@@ -530,71 +627,3 @@ export const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 0, 0, 0.5)",
   },
 });
-
-function ToastList() {
-  const { toasts } = useToasts();
-  const { theme } = useTheme();
-  const { data } = authClient.useSession();
-
-  let joinLobby = async (lobbyId: string) => {
-    const res = await client["join-lobby"].post({
-      lobbyId: lobbyId,
-      joinerId: data?.user.id!,
-    });
-    console.log(lobbyId);
-    console.log(res);
-  };
-
-  return (
-    <View margin={16}>
-      {toasts.map((t, index) => (
-        <Toast.Item
-          key={t.id}
-          toast={t}
-          index={index}
-          animation="bouncy"
-          enterStyle={{
-            opacity: 0,
-            y: -25,
-            scale: 0.9,
-          }}
-          exitStyle={{
-            opacity: 0,
-            y: -20,
-            scale: 0.95,
-          }}
-          opacity={1}
-          y={0}
-          scale={1}
-          borderRadius="$6"
-          padding="$4"
-          borderWidth={1}
-          elevation="$6"
-          theme={theme}
-        >
-          <Toast.Title fontWeight="700">{t.title}</Toast.Title>
-
-          {t.description && (
-            <Toast.Description>{t.description}</Toast.Description>
-          )}
-          <View flexDirection="row" gap="$2" width="100%">
-            <Button
-              backgroundColor="green"
-              flex={1}
-              onPress={() => {
-                const description =
-                  typeof t.description === "string" ? t.description : "";
-                joinLobby(description);
-              }}
-            >
-              Join
-            </Button>
-            <Button backgroundColor="red" flex={1}>
-              Skip
-            </Button>
-          </View>
-        </Toast.Item>
-      ))}
-    </View>
-  );
-}

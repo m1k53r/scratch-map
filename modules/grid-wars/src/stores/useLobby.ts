@@ -6,6 +6,7 @@ export type LobbyOnMap = {
   coordinates: [number, number][];
   members: string[];
   state: gameState;
+  flags: number[][];
 };
 
 interface State {
@@ -18,7 +19,10 @@ interface Action {
   removeLobby: (id: string) => void;
   setLobbies: (lobbies: LobbyOnMap[]) => void;
   updateLobbyState: (gameState: gameState) => void;
-  setCurrentLobby: (id: string) => void;
+  setFlags: (flags: number[][]) => void;
+  setCurrentLobby: (id: string | null) => void;
+  addMembers: (member: string[]) => void;
+  removeMember: (member: string) => void;
 }
 
 export const useLobby = create<State & Action>((set) => ({
@@ -61,9 +65,34 @@ export const useLobby = create<State & Action>((set) => ({
       ),
     }));
   },
-  setCurrentLobby: (id: string) => {
+  addMembers: (members: string[]) => {
+    set((state) => ({
+      lobbies: state.lobbies.map((lobby) =>
+        lobby.id === state.currentLobby
+          ? { ...lobby, members: [...lobby.members, ...members] }
+          : { ...lobby },
+      ),
+    }));
+  },
+  removeMember: (member: string) => {
+    set((state) => ({
+      lobbies: state.lobbies.map((lobby) =>
+        lobby.id === state.currentLobby
+          ? { ...lobby, members: lobby.members.filter((m) => m === member) }
+          : { ...lobby },
+      ),
+    }));
+  },
+  setCurrentLobby: (id: string | null) => {
     set(() => ({
       currentLobby: id,
+    }));
+  },
+  setFlags: (flags: number[][]) => {
+    set((state) => ({
+      lobbies: state.lobbies.map((lobby) =>
+        lobby.id === state.currentLobby ? { ...lobby, flags } : { ...lobby },
+      ),
     }));
   },
 }));

@@ -3,19 +3,27 @@ import {
   GameStateChangeResponse,
   MessageResponse,
   MessageTypeResponse,
+  NewFlagResponse,
+  PlayerTransitionResponse,
   WebSocketResponses,
 } from "@gridwars/types";
 import { useLobby, LobbyOnMap } from "@/stores/useLobby";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export function useWebSocket() {
-  const addLobby = useLobby((state) => state.addLobby);
-  const removeLobby = useLobby((state) => state.removeLobby);
-  const setLobbies = useLobby((state) => state.setLobbies);
-  const updateLobby = useLobby((state) => state.updateLobbyState);
-
+  const ref = useRef<ReturnType<typeof client.ws.subscribe>>(null);
+  const {
+    addLobby,
+    removeLobby,
+    setLobbies,
+    updateLobbyState,
+    setFlags,
+    addMembers,
+    removeMember,
+  } = useLobby.getState();
   useEffect(() => {
     const wsClient = client.ws.subscribe();
+    ref.current = wsClient;
 
     console.log("Connection initialized");
 
@@ -23,10 +31,14 @@ export function useWebSocket() {
       const message = event.data as MessageTypeResponse<MessageResponse>;
       switch (message.code) {
         case WebSocketResponses.PLAYER_JOINED:
-          console.log("sth");
+          const playerJoined =
+            message as MessageTypeResponse<PlayerTransitionResponse>;
+          addMembers([playerJoined.body.playerId]);
           break;
         case WebSocketResponses.PLAYER_LEFT:
-          console.log("sth");
+          const playerLeft =
+            message as MessageTypeResponse<PlayerTransitionResponse>;
+          removeMember(playerLeft.body.playerId);
           break;
         case WebSocketResponses.LOBBY_CREATED:
           addLobby(message.body as LobbyOnMap);
@@ -38,12 +50,17 @@ export function useWebSocket() {
           setLobbies(message.body as LobbyOnMap[]);
           break;
         case WebSocketResponses.GAME_STARTED:
-          updateLobby("playing");
+          const gameStarted =
+            message as MessageTypeResponse<GameStateChangeResponse>;
+          updateLobbyState("playing");
+          setFlags(gameStarted.body.flags);
           break;
         case WebSocketResponses.GAME_ENDED:
-          updateLobby("finished");
+          updateLobbyState("finished");
           break;
         case WebSocketResponses.NEW_FLAG:
+          const newFlags = message as MessageTypeResponse<NewFlagResponse>;
+          setFlags(newFlags.body.flags);
           break;
         default:
           console.log("bomba");
@@ -56,4 +73,6 @@ export function useWebSocket() {
       wsClient.close();
     };
   }, []);
+
+  return { ref };
 }

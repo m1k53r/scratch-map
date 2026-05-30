@@ -7,44 +7,47 @@ import {
 } from "@react-navigation/native";
 import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { SocketProvider } from "@/context/SocketContext";
 
 export default function Layout() {
   const { theme } = useTheme();
   return (
-    <ThemeProvider value={theme === "dark" ? DarkTheme : DefaultTheme}>
-      <Tabs
-        screenOptions={{
-          headerShown: false,
-        }}
-      >
-        <Tabs.Screen
-          name="index"
-          options={{
-            title: "Home",
-            tabBarIcon: ({ color }) => (
-              <Ionicons size={28} name="home" color={color} />
-            ),
+    <SocketProvider>
+      <ThemeProvider value={theme === "dark" ? DarkTheme : DefaultTheme}>
+        <Tabs
+          screenOptions={{
+            headerShown: false,
           }}
-        ></Tabs.Screen>
-        <Tabs.Screen
-          name="profile"
-          options={{
-            title: "Me",
-            tabBarIcon: ({ color }) => (
-              <Ionicons size={28} name="man" color={color} />
-            ),
-          }}
-        ></Tabs.Screen>
-        <Tabs.Screen
-          name="settings"
-          options={{
-            title: "Settings",
-            tabBarIcon: ({ color }) => (
-              <Ionicons size={28} name="settings" color={color} />
-            ),
-          }}
-        ></Tabs.Screen>
-      </Tabs>
-    </ThemeProvider>
+        >
+          <Tabs.Screen
+            name="index"
+            options={{
+              title: "Home",
+              tabBarIcon: ({ color }) => (
+                <Ionicons size={28} name="home" color={color} />
+              ),
+            }}
+          ></Tabs.Screen>
+          <Tabs.Screen
+            name="profile"
+            options={{
+              title: "Me",
+              tabBarIcon: ({ color }) => (
+                <Ionicons size={28} name="man" color={color} />
+              ),
+            }}
+          ></Tabs.Screen>
+          <Tabs.Screen
+            name="settings"
+            options={{
+              title: "Settings",
+              tabBarIcon: ({ color }) => (
+                <Ionicons size={28} name="settings" color={color} />
+              ),
+            }}
+          ></Tabs.Screen>
+        </Tabs>
+      </ThemeProvider>
+    </SocketProvider>
   );
 }

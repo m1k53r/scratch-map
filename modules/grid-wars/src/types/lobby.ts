@@ -1,7 +1,9 @@
+import { gameState } from "@gridwars/types";
+
 type Lobby = {
   id: string;
   hostId: string;
-  lobbyStatus: "waiting" | "active" | "game_started";
+  lobbyStatus: gameState;
   isPublic: boolean;
   joinCode: string;
   minLat: number;

@@ -22,6 +22,7 @@
     "@rnmapbox/maps": "^10.3.0",
     "@tamagui/animations-react-native": "^2.0.0",
     "@tamagui/config": "^2.0.0-rc.41",
+    "@tamagui/spinner": "^2.0.0",
     "@tamagui/toast": "^2.0.0",
     "@tanstack/react-query": "^5.99.0",
     "@types/mapbox__mapbox-gl-draw": "^1.4.9",

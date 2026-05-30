@@ -1,7 +1,9 @@
+import { gameState } from "@gridwars/types";
 import Settings from "./Settings";
+
 export type Lobby = {
   id: string;
-  lobbyStatus: "waiting" | "active" | "game_started";
+  lobbyStatus: gameState;
   joinCode: string | null;
   coordinates: [number, number][];
   settings: Settings;
