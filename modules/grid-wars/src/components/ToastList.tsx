@@ -1,7 +1,9 @@
 import { client } from "@/lib/api-client";
 import { authClient } from "@/lib/auth-client";
+import { useSocket } from "@/context/SocketContext";
 import { useLobby } from "@/stores/useLobby";
 import { FormMode } from "@/types/formMode";
+import { PlayerJoinedBody, MessageType, WebSocketCodes } from "@gridwars/types";
 import { Toast, useToasts } from "@tamagui/toast/v2";
 import { Button, useTheme, View } from "tamagui";
 
@@ -13,18 +15,28 @@ export default function ToastList({ setFormMode }: ToastListProps) {
   const { toasts } = useToasts();
   const { theme } = useTheme();
   const { data } = authClient.useSession();
+  const socket = useSocket();
+  const setCurrentLobby = useLobby((state) => state.setCurrentLobby);
+  const setPlayerName = useLobby((state) => state.setPlayerName);
   const addMembers = useLobby((state) => state.addMembers);
 
   let joinLobby = async (lobbyId: string) => {
     if (!data) return;
 
-    const res = await client["join-lobby"].post({
-      lobbyId: lobbyId,
-    });
-    setFormMode("waiting_for_players");
+    const res = await client["join-lobby"].post({ lobbyId });
+    if (!res.data?.success) return;
+
+    setCurrentLobby(lobbyId);
+    setPlayerName(data.user.id, data.user.name);
     addMembers([data.user.id]);
-    console.log(lobbyId);
-    console.log(res);
+
+    const joinMsg: MessageType<PlayerJoinedBody> = {
+      code: WebSocketCodes.PLAYER_JOINED,
+      body: { lobbyId, playerId: data.user.id, playerName: data.user.name },
+    };
+    socket.ref.current?.send(joinMsg);
+
+    setFormMode("waiting_for_players");
   };
 
   return (

@@ -26,6 +26,8 @@ export interface MessageResponse { }
 
 export interface PlayerJoinedBody extends MessageBody {
   lobbyId: string;
+  playerId: string;
+  playerName: string;
 }
 
 export interface GameStateChangeBody extends MessageBody {
@@ -35,6 +37,7 @@ export interface GameStateChangeBody extends MessageBody {
 export interface CollectFlagBody extends MessageBody {
   lobbyId: string;
   flagCoordinates: [number, number]
+  playerId: string;
 }
 
 export interface MessageType<T extends MessageBody> {
@@ -45,18 +48,22 @@ export interface MessageType<T extends MessageBody> {
 
 export interface GameStateChangeResponse extends MessageResponse {
   flags: number[][];
+  timeLimit: number;
 }
 
 export interface GameEndResponse extends MessageResponse {
   lobbyId: string;
+  playerId: string;
 }
 
 export interface NewFlagResponse extends MessageResponse {
   flags: number[][];
+  playerId: string;
 }
 
 export interface PlayerTransitionResponse extends MessageResponse {
   playerId: string;
+  playerName: string;
 }
 
 export interface LobbiesSyncResponse extends MessageBody {
@@ -72,3 +79,8 @@ export interface MessageTypeResponse<T extends MessageResponse> {
 }
 
 export type gameState = "waiting" | "playing" | "finished"
+
+export interface Points {
+  [user: string]: number;
+}
+

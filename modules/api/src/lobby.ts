@@ -22,11 +22,14 @@ export const createLobby = (
     joinCode,
     coordinates,
     members: [hostId],
+    playerNames: {},
     settings: {
       membersLimit,
       timeLimit,
     },
     createdAt: new Date(Date.now()),
+    flags: [],
+    points: { hostId: 0 },
   };
   return lobby;
 };

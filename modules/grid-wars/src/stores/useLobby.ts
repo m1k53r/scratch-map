@@ -13,6 +13,9 @@ export type LobbyOnMap = {
 interface State {
   lobbies: LobbyOnMap[];
   currentLobby: string | null;
+  winner: string | null;
+  playerNames: Record<string, string>;
+  gameEndsAt: number | null;
 }
 
 interface Action {
@@ -25,11 +28,17 @@ interface Action {
   addMembers: (member: string[]) => void;
   removeMember: (member: string) => void;
   addPoints: (member: string) => void;
+  setWinner: (id: string | null) => void;
+  setPlayerName: (id: string, name: string) => void;
+  setGameEndsAt: (ts: number | null) => void;
 }
 
 export const useLobby = create<State & Action>((set) => ({
   lobbies: [],
   currentLobby: null,
+  winner: null,
+  playerNames: {},
+  gameEndsAt: null,
 
   addLobby: (lobby: LobbyOnMap) =>
     set((state) => {
@@ -71,7 +80,7 @@ export const useLobby = create<State & Action>((set) => ({
     set((state) => ({
       lobbies: state.lobbies.map((lobby) =>
         lobby.id === state.currentLobby
-          ? { ...lobby, members: [...lobby.members, ...members] }
+          ? { ...lobby, members: [...new Set([...lobby.members, ...members])] }
           : { ...lobby },
       ),
     }));
@@ -80,7 +89,7 @@ export const useLobby = create<State & Action>((set) => ({
     set((state) => ({
       lobbies: state.lobbies.map((lobby) =>
         lobby.id === state.currentLobby
-          ? { ...lobby, members: lobby.members.filter((m) => m === member) }
+          ? { ...lobby, members: lobby.members.filter((m) => m !== member) }
           : { ...lobby },
       ),
     }));
@@ -100,13 +109,17 @@ export const useLobby = create<State & Action>((set) => ({
   addPoints: (member: string) => {
     set((state) => ({
       lobbies: state.lobbies.map((lobby) =>
-        state.currentLobby
+        lobby.id === state.currentLobby
           ? {
               ...lobby,
-              points: { ...lobby.points, member: lobby.points[member] + 1 },
+              points: { ...lobby.points, [member]: (lobby.points[member] ?? 0) + 1 },
             }
-          : { ...lobby },
+          : lobby,
       ),
     }));
   },
+  setWinner: (id: string | null) => set({ winner: id }),
+  setPlayerName: (id: string, name: string) =>
+    set((state) => ({ playerNames: { ...state.playerNames, [id]: name } })),
+  setGameEndsAt: (ts: number | null) => set({ gameEndsAt: ts }),
 }));

@@ -1,4 +1,4 @@
-import { gameState } from "@gridwars/types";
+import { gameState, Points } from "@gridwars/types";
 import Settings from "./Settings";
 
 export type Lobby = {
@@ -9,6 +9,8 @@ export type Lobby = {
   settings: Settings;
   // first member is always the host
   members: string[];
+  playerNames: Record<string, string>;
+  points: Points;
   createdAt: Date;
   flags: number[][];
 };

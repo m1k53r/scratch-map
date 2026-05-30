@@ -13,11 +13,11 @@ import {
   Spinner,
 } from "tamagui";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Polygon } from "geojson";
 import AntDesign from "@expo/vector-icons/AntDesign";
 import { client } from "@/lib/api-client";
-import { Dimensions, Linking, Pressable, StyleSheet } from "react-native";
+import { Dimensions, Linking, Modal, Pressable, StyleSheet } from "react-native";
 import { useTheme } from "@/stores/useTheme";
 import { useLobby } from "@/stores/useLobby";
 import * as turf from "@turf/turf";
@@ -43,19 +43,32 @@ export default function Index() {
   const socket = useSocket();
   const [formMode, setFormMode] = useState<FormMode>("closed");
   const [params, setParams] = useState<LobbyParameters>({
-    timeLimit: 0,
-    membersLimit: 0,
+    timeLimit: "",
+    membersLimit: "",
     points: [],
     lobbyArea: null,
   });
   const [prevLobbyId, setPrevLobbyId] = useState("");
+  const cameraRef = useRef<Mapbox.Camera>(null);
+  const cameraInitialized = useRef(false);
   const lobbies = useLobby((state) => state.lobbies);
   const setLobbies = useLobby((state) => state.setLobbies);
   const setMyLobby = useLobby((state) => state.setCurrentLobby);
   const addLobby = useLobby((state) => state.addLobby);
   const addMembers = useLobby((state) => state.addMembers);
   const addPoints = useLobby((state) => state.addPoints);
+  const winner = useLobby((state) => state.winner);
+  const setWinner = useLobby((state) => state.setWinner);
+  const playerNames = useLobby((state) => state.playerNames);
+  const setPlayerName = useLobby((state) => state.setPlayerName);
+  const gameEndsAt = useLobby((state) => state.gameEndsAt);
   const myLobby = useCurrentLobby();
+  const [timeLeft, setTimeLeft] = useState("");
+
+  const getPlayerName = (id: string) =>
+    id === data?.user.id
+      ? `${data.user.name} (You)`
+      : (playerNames[id] ?? id.slice(0, 8));
 
   useEffect(() => {
     setLobbies([]);
@@ -103,18 +116,42 @@ export default function Index() {
       );
       if (d < 10) {
         console.log("collected");
-        addPoints(data?.user.id || "");
         const request: MessageType<CollectFlagBody> = {
           code: WebSocketCodes.COLLECT_FLAG,
           body: {
             lobbyId: myLobby.id,
             flagCoordinates: [flag[0], flag[1]],
+            playerId: data?.user.id ?? "",
           },
         };
         socket.ref.current?.send(request);
       }
     }
   }, [location, myLobby]);
+
+  useEffect(() => {
+    if (!location || !cameraRef.current) return;
+    const coords: [number, number] = [location.coords.longitude, location.coords.latitude];
+    if (!cameraInitialized.current) {
+      cameraRef.current.setCamera({ centerCoordinate: coords, zoomLevel: 17, animationDuration: 0 });
+      cameraInitialized.current = true;
+    } else {
+      cameraRef.current.setCamera({ centerCoordinate: coords, animationDuration: 300, animationMode: "easeTo" });
+    }
+  }, [location]);
+
+  useEffect(() => {
+    if (!gameEndsAt) { setTimeLeft(""); return; }
+    const tick = () => {
+      const secs = Math.max(0, Math.floor((gameEndsAt - Date.now()) / 1000));
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      setTimeLeft(`${m}:${s.toString().padStart(2, "0")}`);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [gameEndsAt]);
 
   useEffect(() => {
     if (myLobby?.state === "playing") {
@@ -143,8 +180,17 @@ export default function Index() {
         members: [data?.user.id as string],
         state: "waiting",
         flags: [],
+        points: { [data?.user.id as string]: 0 },
       });
       setMyLobby(lobbyId);
+      if (data?.user) setPlayerName(data.user.id, data.user.name);
+
+      const joinMsg: MessageType<PlayerJoinedBody> = {
+        code: WebSocketCodes.PLAYER_JOINED,
+        body: { lobbyId, playerId: data?.user.id ?? "", playerName: data?.user.name ?? "" },
+      };
+      socket.ref.current?.send(joinMsg);
+
       console.log(useLobby.getState().currentLobby);
       setFormMode("waiting_for_players");
       // TODO: what is this for?
@@ -159,8 +205,8 @@ export default function Index() {
       console.log(myLobby);
 
       setParams(() => ({
-        timeLimit: 0,
-        membersLimit: 0,
+        timeLimit: "",
+        membersLimit: "",
         points: [],
         lobbyArea: null,
       }));
@@ -186,13 +232,15 @@ export default function Index() {
     setFormMode("closed");
     setMyLobby(null);
 
-    const data: MessageType<PlayerJoinedBody> = {
+    const leaveMsg: MessageType<PlayerJoinedBody> = {
       code: WebSocketCodes.PLAYER_LEFT,
       body: {
         lobbyId: myLobby.id,
+        playerId: data?.user.id ?? "",
+        playerName: data?.user.name ?? "",
       },
     };
-    socket.ref.current?.send(data);
+    socket.ref.current?.send(leaveMsg);
   };
 
   let startGame = () => {
@@ -220,6 +268,7 @@ export default function Index() {
   };
 
   const handleMapPress = (e: any) => {
+    if (myLobby?.state === "playing") return;
     if (formMode != "select_area") return;
 
     const coords = e?.geometry?.coordinates;
@@ -256,21 +305,20 @@ export default function Index() {
   const formatMembers = (memberId: string) => {
     if (!myLobby || !myLobby.id) return;
 
-    if (memberId === myLobby.members[0] && memberId === data?.user.id) {
-      return `${data?.user.name} (You / Host)`;
-    } else if (memberId === myLobby.members[0]) {
-      return `${memberId} (Host)`;
-    } else if (memberId === data?.user.id) {
-      return `${data?.user.name} (You)`;
-    } else return memberId;
+    const name = playerNames[memberId] ?? memberId.slice(0, 8);
+    const isHost = memberId === myLobby.members[0];
+    const isYou = memberId === data?.user.id;
+
+    if (isHost && isYou) return `${name} (You / Host)`;
+    if (isHost) return `${name} (Host)`;
+    if (isYou) return `${name} (You)`;
+    return name;
   };
 
   if (!location) {
     return (
-      <View>
-        <Text>
-          <Spinner size="large" />
-        </Text>
+      <View style={styles.container}>
+        <Spinner size="large" />
       </View>
     );
   }
@@ -292,14 +340,18 @@ export default function Index() {
           style={styles.map}
           scaleBarEnabled={false}
           onPress={handleMapPress}
+          onDidFinishLoadingMap={() => {
+            if (!location || cameraInitialized.current) return;
+            cameraRef.current?.setCamera({
+              centerCoordinate: [location.coords.longitude, location.coords.latitude],
+              zoomLevel: 17,
+              animationDuration: 1200,
+              animationMode: "flyTo",
+            });
+            cameraInitialized.current = true;
+          }}
         >
-          <Mapbox.Camera
-            zoomLevel={15}
-            centerCoordinate={[
-              location.coords.longitude,
-              location.coords.latitude,
-            ]}
-          />
+          <Mapbox.Camera ref={cameraRef} />
           {lobbies.map(
             (lobby) =>
               lobby.state !== "finished" && (
@@ -339,8 +391,8 @@ export default function Index() {
           )}
           {myLobby &&
             myLobby.state === "playing" &&
-            myLobby.flags.map((flag) => (
-              <Mapbox.MarkerView coordinate={flag} key={flag}>
+            myLobby.flags.map((flag, i) => (
+              <Mapbox.MarkerView coordinate={flag} key={i}>
                 <Text style={{ fontSize: 24 }}>🚩</Text>
               </Mapbox.MarkerView>
             ))}
@@ -382,6 +434,75 @@ export default function Index() {
             </Mapbox.ShapeSource>
           )}
         </Mapbox.MapView>
+
+        {myLobby?.state === "playing" && (
+          <View style={styles.scoreboard} backgroundColor={theme === "dark" ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.85)"}>
+            <Text fontWeight="bold" marginBottom="$1" color={theme === "dark" ? "white" : "black"}>
+              Scores
+            </Text>
+            {Object.entries(myLobby.points)
+              .sort(([, a], [, b]) => b - a)
+              .map(([playerId, score]) => (
+                <XStack key={playerId} justifyContent="space-between" width="100%" gap="$2">
+                  <Text color={theme === "dark" ? "white" : "black"} numberOfLines={1} ellipsizeMode="tail" style={{ flex: 1, flexShrink: 1 }}>
+                    {getPlayerName(playerId)}
+                  </Text>
+                  <Text fontWeight="bold" color={theme === "dark" ? "white" : "black"}>{score}</Text>
+                </XStack>
+              ))}
+          </View>
+        )}
+
+        {myLobby?.state === "playing" && timeLeft !== "" && (
+          <View style={styles.timerCard} backgroundColor={theme === "dark" ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.85)"}>
+            <Text style={{ color: theme === "dark" ? "white" : "black", fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>
+              Time
+            </Text>
+            <Text fontWeight="bold" fontSize="$5" color={theme === "dark" ? "white" : "black"}>
+              {timeLeft}
+            </Text>
+          </View>
+        )}
+
+        <Modal visible={!!winner} transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard} backgroundColor={theme === "dark" ? "#1a1a1a" : "white"}>
+              <Text fontSize="$8" fontWeight="bold" marginBottom="$2" color={theme === "dark" ? "white" : "black"}>
+                Game Over!
+              </Text>
+              <Text fontSize="$5" marginBottom="$4" color={theme === "dark" ? "#ccc" : "#333"}>
+                {winner === data?.user.id
+                  ? "You win! 🏆"
+                  : `Winner: ${winner ? (playerNames[winner] ?? winner.slice(0, 12)) : ""}`}
+              </Text>
+              {myLobby && (
+                <YStack width="100%" gap="$1" marginBottom="$4">
+                  {Object.entries(myLobby.points)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([playerId, score]) => (
+                      <XStack key={playerId} justifyContent="space-between">
+                        <Text color={theme === "dark" ? "white" : "black"}>
+                          {getPlayerName(playerId)}
+                        </Text>
+                        <Text fontWeight="bold" color={theme === "dark" ? "white" : "black"}>{score}</Text>
+                      </XStack>
+                    ))}
+                </YStack>
+              )}
+              <Button
+                theme="red"
+                onPress={() => {
+                  setWinner(null);
+                  setMyLobby(null);
+                  setFormMode("closed");
+                }}
+              >
+                Back to map
+              </Button>
+            </View>
+          </View>
+        </Modal>
+
         {formMode === "open" && (
           <View
             style={styles.lobbyForm}
@@ -390,10 +511,10 @@ export default function Index() {
             <Input
               value={params.timeLimit}
               onChangeText={(text) =>
-                setParams((prev) => ({ ...prev, timeLimit: Number(text) }))
+                setParams((prev) => ({ ...prev, timeLimit: text }))
               }
               backgroundColor={theme === "dark" ? "gray" : "white"}
-              placeholder="Time limit"
+              placeholder="Time limit (minutes)"
               width={200}
               margin="$2"
               placeholderTextColor={theme === "dark" ? "white" : "black"}
@@ -403,7 +524,7 @@ export default function Index() {
             <Input
               value={params.membersLimit}
               onChangeText={(text) =>
-                setParams((prev) => ({ ...prev, membersLimit: Number(text) }))
+                setParams((prev) => ({ ...prev, membersLimit: text }))
               }
               backgroundColor={theme === "dark" ? "gray" : "white"}
               placeholder="Players number"
@@ -419,10 +540,41 @@ export default function Index() {
             >
               Select area
             </Button>
-
             <Button style={styles.formButton} onPress={createLobby}>
               Create Lobby
             </Button>
+          </View>
+        )}
+
+        {formMode === "select_area" && (
+          <View
+            style={styles.selectAreaBar}
+            backgroundColor={theme === "dark" ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.92)"}
+          >
+            <Text color="gray" fontSize="$3" marginBottom="$2" textAlign="center">
+              Tap the map to place polygon points
+            </Text>
+            <XStack gap="$3">
+              <Button
+                flex={1}
+                onPress={() => {
+                  drawLobbyArea(null);
+                  setFormMode("open");
+                }}
+              >
+                Confirm area
+              </Button>
+              <Button
+                flex={1}
+                theme="red"
+                onPress={() => {
+                  setParams((prev) => ({ ...prev, points: [], lobbyArea: null }));
+                  setFormMode("open");
+                }}
+              >
+                Cancel
+              </Button>
+            </XStack>
           </View>
         )}
         {formMode === "waiting_for_players" && (
@@ -502,92 +654,96 @@ export default function Index() {
           </View>
         )}
 
-        <Button
-          circular
-          elevation="$4"
-          size="$5"
-          style={styles.fab}
-          onPress={() => {
-            if (formMode === "closed") {
-              setFormMode("open");
-              return;
-            }
+        {myLobby?.state !== "playing" && (
+          <>
+            <Button
+              circular
+              elevation="$4"
+              size="$5"
+              style={styles.fab}
+              onPress={() => {
+                if (formMode === "closed") {
+                  setFormMode("open");
+                  return;
+                }
 
-            if (formMode === "open") {
-              setFormMode("select_area");
-              return;
-            }
+                if (formMode === "open") {
+                  setFormMode("select_area");
+                  return;
+                }
 
-            if (formMode === "select_area") {
-              drawLobbyArea(null);
-              setFormMode("open");
-              return;
-            }
+                if (formMode === "select_area") {
+                  drawLobbyArea(null);
+                  setFormMode("open");
+                  return;
+                }
 
-            if (formMode === "waiting_for_players") {
-              setFormMode("closed");
-              return;
-            }
-          }}
-        >
-          {formMode === "closed" && (
-            <Ionicons
-              name="play"
-              size={24}
-              color={theme === "dark" ? "white" : "black"}
-            />
-          )}
+                if (formMode === "waiting_for_players") {
+                  setFormMode("closed");
+                  return;
+                }
+              }}
+            >
+              {formMode === "closed" && (
+                <Ionicons
+                  name="play"
+                  size={24}
+                  color={theme === "dark" ? "white" : "black"}
+                />
+              )}
 
-          {(formMode === "open" || formMode === "waiting_for_players") && (
-            <Ionicons
-              name="close"
-              size={24}
-              color={theme === "dark" ? "white" : "black"}
-            />
-          )}
+              {(formMode === "open" || formMode === "waiting_for_players") && (
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={theme === "dark" ? "white" : "black"}
+                />
+              )}
 
-          {formMode === "select_area" && (
-            <Ionicons
-              name="checkmark"
-              size={24}
-              color={theme === "dark" ? "white" : "black"}
-            />
-          )}
-        </Button>
-        <Button
-          circular
-          elevation="$4"
-          size="$5"
-          style={styles.fabl}
-          onPress={() => {
-            setParams((prev) => ({
-              ...prev,
-              points: [],
-              lobbyArea: null,
-            }));
-          }}
-        >
-          <AntDesign
-            name="clear"
-            size={24}
-            color={theme === "dark" ? "white" : "black"}
-          />
-        </Button>
-        <Button
-          circular
-          elevation="$4"
-          size="$5"
-          style={styles.fabd}
-          onPress={() => {
-            deleteLobby();
-          }}
-        >
-          <Ionicons
-            name="remove"
-            size={24}
-            color={theme === "dark" ? "white" : "black"}
-          />
-        </Button>
+              {formMode === "select_area" && (
+                <Ionicons
+                  name="checkmark"
+                  size={24}
+                  color={theme === "dark" ? "white" : "black"}
+                />
+              )}
+            </Button>
+            <Button
+              circular
+              elevation="$4"
+              size="$5"
+              style={styles.fabl}
+              onPress={() => {
+                setParams((prev) => ({
+                  ...prev,
+                  points: [],
+                  lobbyArea: null,
+                }));
+              }}
+            >
+              <AntDesign
+                name="clear"
+                size={24}
+                color={theme === "dark" ? "white" : "black"}
+              />
+            </Button>
+            <Button
+              circular
+              elevation="$4"
+              size="$5"
+              style={styles.fabd}
+              onPress={() => {
+                deleteLobby();
+              }}
+            >
+              <Ionicons
+                name="remove"
+                size={24}
+                color={theme === "dark" ? "white" : "black"}
+              />
+            </Button>
+          </>
+        )}
       </View>
     </Toast>
   );
@@ -649,7 +805,44 @@ export const styles = StyleSheet.create({
     margin: 8,
     width: width / 2,
   },
+  selectAreaBar: {
+    position: "absolute",
+    bottom: 80,
+    left: 16,
+    right: 16,
+    borderRadius: 12,
+    padding: 16,
+  },
+  timerCard: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    borderRadius: 8,
+    padding: 10,
+    alignItems: "center",
+  },
   lobbyArea: {
     backgroundColor: "rgba(255, 0, 0, 0.5)",
+  },
+  scoreboard: {
+    position: "absolute",
+    top: 16,
+    left: 16,
+    borderRadius: 8,
+    padding: 10,
+    maxWidth: 180,
+    gap: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalCard: {
+    borderRadius: 16,
+    padding: 24,
+    width: width - 48,
+    alignItems: "center",
   },
 });

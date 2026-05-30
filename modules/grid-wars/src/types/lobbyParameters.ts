@@ -1,8 +1,8 @@
 import { Feature, Polygon } from "geojson";
 
 export interface LobbyParameters {
-  timeLimit: number;
-  membersLimit: number;
+  timeLimit: string;
+  membersLimit: string;
   points: [number, number][];
   lobbyArea: Feature<Polygon> | null;
 }

@@ -33,12 +33,14 @@ const testLobby: Lobby = {
     [18.644138233573585, 54.354860406740386],
   ],
   members: ["GBT37DSgsuxBui59xZsGc0gimeuZvZls"],
+  playerNames: {},
   settings: {
     membersLimit: 10,
     timeLimit: 10,
   },
   createdAt: new Date(Date.now()),
   flags: [],
+  points: {},
 };
 lobbies[testLobby.id] = testLobby;
 
@@ -75,8 +77,8 @@ export const websocket = new Elysia({ name: "websocket" })
   .use(cors())
   .use(betterAuth)
   .ws("/ws", {
-    auth: true,
     open(ws) {
+      console.log("opened connection");
       // why is this not a regular endpoint?
       wsClients.add(ws);
       const message: MessageTypeResponse<Array<LobbiesSyncResponse>> = {
@@ -93,41 +95,67 @@ export const websocket = new Elysia({ name: "websocket" })
       ws.send(JSON.stringify(message));
     },
     message(ws, message: MessageType<MessageBody>) {
+      console.log("new message");
       switch (message.code) {
         case WebSocketCodes.PLAYER_JOINED:
           const playerJoined = message.body as PlayerTransitionBody;
+          const joiningLobby = lobbies[playerJoined.lobbyId];
+
+          if (joiningLobby) {
+            joiningLobby.playerNames[playerJoined.playerId] = playerJoined.playerName;
+
+            // Send each existing member's name back to the new joiner
+            for (const [id, name] of Object.entries(joiningLobby.playerNames)) {
+              if (id !== playerJoined.playerId) {
+                const existingMember: MessageTypeResponse<PlayerTransitionResponse> = {
+                  code: WebSocketResponses.PLAYER_JOINED,
+                  body: { playerId: id, playerName: name },
+                };
+                ws.send(JSON.stringify(existingMember));
+              }
+            }
+          }
+
           ws.subscribe(playerJoined.lobbyId);
 
-          const playerJoinedResponse: MessageTypeResponse<PlayerTransitionResponse> =
-            {
-              code: WebSocketResponses.PLAYER_JOINED,
-              body: {
-                playerId: ws.data.user.id,
-              },
-            };
+          const playerJoinedResponse: MessageTypeResponse<PlayerTransitionResponse> = {
+            code: WebSocketResponses.PLAYER_JOINED,
+            body: {
+              playerId: playerJoined.playerId,
+              playerName: playerJoined.playerName,
+            },
+          };
           ws.publish(playerJoined.lobbyId, playerJoinedResponse);
           break;
 
         case WebSocketCodes.PLAYER_LEFT:
           const playerLeft = message.body as PlayerTransitionBody;
-          ws.unsubscribe(playerLeft.lobbyId);
+          const leavingLobby = lobbies[playerLeft.lobbyId];
+          if (leavingLobby) {
+            leavingLobby.members = leavingLobby.members.filter(
+              (id) => id !== playerLeft.playerId,
+            );
+            delete leavingLobby.points[playerLeft.playerId];
 
-          const playerLeftResponse: MessageTypeResponse<PlayerTransitionResponse> =
-            {
-              code: WebSocketResponses.PLAYER_LEFT,
-              body: {
-                playerId: ws.data.user.id,
-              },
-            };
-          ws.publish(playerLeft.lobbyId, playerLeftResponse);
+            const playerLeftResponse: MessageTypeResponse<PlayerTransitionResponse> =
+              {
+                code: WebSocketResponses.PLAYER_LEFT,
+                body: {
+                  playerId: playerLeft.playerId,
+                  playerName: playerLeft.playerName,
+                },
+              };
+            ws.publish(playerLeft.lobbyId, playerLeftResponse);
+            ws.unsubscribe(playerLeft.lobbyId);
 
-          // check if that was the last player in the lobby
-          if (lobbies[playerLeft.lobbyId].members.length === 0) {
-            delete lobbies[playerLeft.lobbyId];
+            if (leavingLobby.members.length === 0) {
+              delete lobbies[playerLeft.lobbyId];
+            }
           }
           break;
 
         case WebSocketCodes.START_GAME:
+          console.log("Start game");
           const startGame = message.body as GameStateChangeBody;
           const lobby = lobbies[startGame.lobbyId];
           lobby.lobbyStatus = "playing";
@@ -145,9 +173,14 @@ export const websocket = new Elysia({ name: "websocket" })
                 code: WebSocketResponses.GAME_ENDED,
                 body: {
                   lobbyId: lobby.id,
+                  playerId: Object.entries(lobby.points).reduce((a, b) =>
+                    a[1] > b[1] ? a : b,
+                  )[0],
                 },
               };
+              console.log("time's up");
               ws.publish(startGame.lobbyId, endResponse);
+              ws.send(endResponse);
               delete lobbies[startGame.lobbyId];
             },
             lobby.settings.timeLimit * 1000 * 60,
@@ -157,6 +190,7 @@ export const websocket = new Elysia({ name: "websocket" })
             code: WebSocketResponses.GAME_STARTED,
             body: {
               flags: lobby.flags,
+              timeLimit: lobby.settings.timeLimit,
             },
           };
           ws.publish(startGame.lobbyId, startResponse);
@@ -168,23 +202,36 @@ export const websocket = new Elysia({ name: "websocket" })
           break;
 
         case WebSocketCodes.COLLECT_FLAG:
+          console.log("flag collected");
           const collectFlag = message.body as CollectFlagBody;
           const flagLobby = lobbies[collectFlag.lobbyId];
           const newFlag = generateRandomPoints(flagLobby.coordinates)
             .features[0].geometry.coordinates;
-          if (flagLobby.flags[0] === collectFlag.flagCoordinates) {
+          console.log(newFlag);
+          if (
+            flagLobby.flags[0].every(
+              (val, i) => val === collectFlag.flagCoordinates[i],
+            )
+          ) {
             flagLobby.flags[0] = newFlag as number[];
-          } else if (flagLobby.flags[1] === collectFlag.flagCoordinates) {
+          } else if (
+            flagLobby.flags[1].every(
+              (val, i) => val === collectFlag.flagCoordinates[i],
+            )
+          ) {
             flagLobby.flags[1] = newFlag as number[];
           }
+          flagLobby.points[collectFlag.playerId] = (flagLobby.points[collectFlag.playerId] ?? 0) + 1;
 
           const newFlagResponse: MessageTypeResponse<NewFlagResponse> = {
             code: WebSocketResponses.NEW_FLAG,
             body: {
               flags: flagLobby.flags,
+              playerId: collectFlag.playerId,
             },
           };
           ws.publish(collectFlag.lobbyId, newFlagResponse);
+          ws.send(newFlagResponse);
           break;
 
         default:
@@ -252,22 +299,25 @@ export const app = new Elysia()
   .post(
     "join-lobby",
     ({ user, body }) => {
-      if (body.lobbyId === "") return { success: false };
-      const lobbyToJoin = Object.values(lobbies).some((lobby) =>
-        lobby.id.includes(body.lobbyId),
+      const lobby = lobbies[body.lobbyId];
+      if (!lobby) return { success: false };
+      if (lobby.lobbyStatus !== "waiting") return { success: false };
+
+      const isUserAlreadyInLobby = Object.values(lobbies).some((l) =>
+        l.members.includes(user.id),
       );
-      if (lobbyToJoin) {
-        const isUserAlreadyInLobby = Object.values(lobbies).some((lobby) =>
-          lobby.members.includes(user.id),
-        );
-        if (isUserAlreadyInLobby) return { success: false };
-        lobbies[body.lobbyId].members.push(user.id);
-        console.log(lobbies[body.lobbyId].members);
-      }
+      if (isUserAlreadyInLobby) return { success: false };
+
+      lobby.members.push(user.id);
+      lobby.points[user.id] = 0;
+      return { success: true };
     },
     {
       body: t.Object({
         lobbyId: t.String(),
+      }),
+      response: t.Object({
+        success: t.Boolean(),
       }),
       auth: true,
     },

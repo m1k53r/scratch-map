@@ -1,13 +1,15 @@
 import { client } from "./api-client";
 import {
+  GameEndResponse,
   GameStateChangeResponse,
+  LobbiesSyncResponse,
   MessageResponse,
   MessageTypeResponse,
   NewFlagResponse,
   PlayerTransitionResponse,
   WebSocketResponses,
 } from "@gridwars/types";
-import { useLobby, LobbyOnMap } from "@/stores/useLobby";
+import { useLobby } from "@/stores/useLobby";
 import { useEffect, useRef } from "react";
 
 export function useWebSocket() {
@@ -21,6 +23,9 @@ export function useWebSocket() {
     addMembers,
     removeMember,
     addPoints,
+    setWinner,
+    setPlayerName,
+    setGameEndsAt,
   } = useLobby.getState();
   useEffect(() => {
     const wsClient = client.ws.subscribe();
@@ -36,6 +41,7 @@ export function useWebSocket() {
           const playerJoined =
             message as MessageTypeResponse<PlayerTransitionResponse>;
           addMembers([playerJoined.body.playerId]);
+          setPlayerName(playerJoined.body.playerId, playerJoined.body.playerName);
           break;
         case WebSocketResponses.PLAYER_LEFT:
           const playerLeft =
@@ -43,14 +49,15 @@ export function useWebSocket() {
           removeMember(playerLeft.body.playerId);
           break;
         case WebSocketResponses.LOBBY_CREATED:
-          console.log("lobby created");
-          addLobby(message.body as LobbyOnMap);
+          const created = message.body as LobbiesSyncResponse;
+          addLobby({ ...created, flags: [], points: {} });
           break;
         case WebSocketResponses.LOBBY_CLOSED:
           removeLobby(message.body as string);
           break;
         case WebSocketResponses.LOBBIES_SYNC:
-          setLobbies(message.body as LobbyOnMap[]);
+          const synced = message.body as LobbiesSyncResponse[];
+          setLobbies(synced.map((l) => ({ ...l, flags: [], points: {} })));
           break;
         case WebSocketResponses.GAME_STARTED:
           console.log("game started.");
@@ -58,9 +65,13 @@ export function useWebSocket() {
             message as MessageTypeResponse<GameStateChangeResponse>;
           updateLobbyState("playing");
           setFlags(gameStarted.body.flags);
+          setGameEndsAt(Date.now() + gameStarted.body.timeLimit * 60 * 1000);
           break;
         case WebSocketResponses.GAME_ENDED:
+          const gameEnded = message as MessageTypeResponse<GameEndResponse>;
           updateLobbyState("finished");
+          setWinner(gameEnded.body.playerId);
+          setGameEndsAt(null);
           break;
         case WebSocketResponses.NEW_FLAG:
           console.log("new flag.");
