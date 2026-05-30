@@ -50,9 +50,16 @@ export default function Index() {
   });
   const [prevLobbyId, setPrevLobbyId] = useState("");
   const lobbies = useLobby((state) => state.lobbies);
+  const setLobbies = useLobby((state) => state.setLobbies);
   const setMyLobby = useLobby((state) => state.setCurrentLobby);
+  const addLobby = useLobby((state) => state.addLobby);
   const addMembers = useLobby((state) => state.addMembers);
+  const addPoints = useLobby((state) => state.addPoints);
   const myLobby = useCurrentLobby();
+
+  useEffect(() => {
+    setLobbies([]);
+  }, []);
 
   useEffect(() => {
     if (!location || !lobbies) return;
@@ -94,15 +101,17 @@ export default function Index() {
         flag,
         { units: "meters" },
       );
-      if (d < 50) {
-        const data: MessageType<CollectFlagBody> = {
+      if (d < 10) {
+        console.log("collected");
+        addPoints(data?.user.id || "");
+        const request: MessageType<CollectFlagBody> = {
           code: WebSocketCodes.COLLECT_FLAG,
           body: {
             lobbyId: myLobby.id,
             flagCoordinates: [flag[0], flag[1]],
           },
         };
-        socket.ref.current?.send(data);
+        socket.ref.current?.send(request);
       }
     }
   }, [location, myLobby]);
@@ -125,17 +134,29 @@ export default function Index() {
     console.log(res);
 
     if (res.data?.success) {
+      console.log("uhh data?");
       console.log(res.data);
-      setMyLobby(res.data?.id as string);
+      const lobbyId = res.data.id as string;
+      addLobby({
+        id: lobbyId,
+        coordinates: closedPolygon,
+        members: [data?.user.id as string],
+        state: "waiting",
+        flags: [],
+      });
+      setMyLobby(lobbyId);
+      console.log(useLobby.getState().currentLobby);
       setFormMode("waiting_for_players");
-      const initialMembers = await getLobbyMembers();
-      const currentUserId = data?.user.id;
-
-      if (currentUserId && !initialMembers.includes(currentUserId)) {
-        addMembers([currentUserId, ...initialMembers]);
-      } else {
-        addMembers(initialMembers);
-      }
+      // TODO: what is this for?
+      // const initialMembers = await getLobbyMembers();
+      // const currentUserId = data?.user.id;
+      //
+      // if (currentUserId && !initialMembers.includes(currentUserId)) {
+      //   addMembers([currentUserId, ...initialMembers]);
+      // } else {
+      //   addMembers(initialMembers);
+      // }
+      console.log(myLobby);
 
       setParams(() => ({
         timeLimit: 0,
@@ -177,6 +198,7 @@ export default function Index() {
   let startGame = () => {
     if (!myLobby) return;
 
+    console.log("starting ");
     setFormMode("closed");
 
     const data: MessageType<GameStateChangeBody> = {
@@ -185,6 +207,7 @@ export default function Index() {
         lobbyId: myLobby.id,
       },
     };
+    console.log(socket.ref.current);
     socket.ref.current?.send(data);
   };
 
@@ -277,28 +300,31 @@ export default function Index() {
               location.coords.latitude,
             ]}
           />
-          {lobbies.map((lobby) => (
-            <Mapbox.ShapeSource
-              key={lobby.id}
-              id={`lobby-${lobby.id}`}
-              shape={{
-                type: "Feature",
-                geometry: {
-                  type: "Polygon",
-                  coordinates: [lobby.coordinates],
-                },
-                properties: {},
-              }}
-            >
-              <FillLayer
-                id={`fill-${lobby.id}`}
-                style={{
-                  fillColor: "red",
-                  fillOpacity: 0.4,
-                }}
-              />
-            </Mapbox.ShapeSource>
-          ))}
+          {lobbies.map(
+            (lobby) =>
+              lobby.state !== "finished" && (
+                <Mapbox.ShapeSource
+                  key={lobby.id}
+                  id={`lobby-${lobby.id}`}
+                  shape={{
+                    type: "Feature",
+                    geometry: {
+                      type: "Polygon",
+                      coordinates: [lobby.coordinates],
+                    },
+                    properties: {},
+                  }}
+                >
+                  <FillLayer
+                    id={`fill-${lobby.id}`}
+                    style={{
+                      fillColor: "red",
+                      fillOpacity: 0.4,
+                    }}
+                  />
+                </Mapbox.ShapeSource>
+              ),
+          )}
           {location && (
             <Mapbox.MarkerView
               coordinate={[location.coords.longitude, location.coords.latitude]}
@@ -314,7 +340,7 @@ export default function Index() {
           {myLobby &&
             myLobby.state === "playing" &&
             myLobby.flags.map((flag) => (
-              <Mapbox.MarkerView coordinate={flag}>
+              <Mapbox.MarkerView coordinate={flag} key={flag}>
                 <Text style={{ fontSize: 24 }}>🚩</Text>
               </Mapbox.MarkerView>
             ))}

@@ -13,14 +13,16 @@ export default function ToastList({ setFormMode }: ToastListProps) {
   const { toasts } = useToasts();
   const { theme } = useTheme();
   const { data } = authClient.useSession();
-  const addMember = useLobby((state) => state.addMember);
+  const addMembers = useLobby((state) => state.addMembers);
 
   let joinLobby = async (lobbyId: string) => {
+    if (!data) return;
+
     const res = await client["join-lobby"].post({
       lobbyId: lobbyId,
     });
     setFormMode("waiting_for_players");
-    addMember(data?.user.id);
+    addMembers([data.user.id]);
     console.log(lobbyId);
     console.log(res);
   };

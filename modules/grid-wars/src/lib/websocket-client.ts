@@ -20,6 +20,7 @@ export function useWebSocket() {
     setFlags,
     addMembers,
     removeMember,
+    addPoints,
   } = useLobby.getState();
   useEffect(() => {
     const wsClient = client.ws.subscribe();
@@ -31,6 +32,7 @@ export function useWebSocket() {
       const message = event.data as MessageTypeResponse<MessageResponse>;
       switch (message.code) {
         case WebSocketResponses.PLAYER_JOINED:
+          console.log("player joined");
           const playerJoined =
             message as MessageTypeResponse<PlayerTransitionResponse>;
           addMembers([playerJoined.body.playerId]);
@@ -41,6 +43,7 @@ export function useWebSocket() {
           removeMember(playerLeft.body.playerId);
           break;
         case WebSocketResponses.LOBBY_CREATED:
+          console.log("lobby created");
           addLobby(message.body as LobbyOnMap);
           break;
         case WebSocketResponses.LOBBY_CLOSED:
@@ -50,6 +53,7 @@ export function useWebSocket() {
           setLobbies(message.body as LobbyOnMap[]);
           break;
         case WebSocketResponses.GAME_STARTED:
+          console.log("game started.");
           const gameStarted =
             message as MessageTypeResponse<GameStateChangeResponse>;
           updateLobbyState("playing");
@@ -59,8 +63,11 @@ export function useWebSocket() {
           updateLobbyState("finished");
           break;
         case WebSocketResponses.NEW_FLAG:
+          console.log("new flag.");
           const newFlags = message as MessageTypeResponse<NewFlagResponse>;
+          console.log(newFlags.body.flags);
           setFlags(newFlags.body.flags);
+          addPoints(newFlags.body.playerId);
           break;
         default:
           console.log("bomba");

@@ -1,4 +1,4 @@
-import { gameState } from "@gridwars/types";
+import { gameState, Points } from "@gridwars/types";
 import { create } from "zustand";
 
 export type LobbyOnMap = {
@@ -7,6 +7,7 @@ export type LobbyOnMap = {
   members: string[];
   state: gameState;
   flags: number[][];
+  points: Points;
 };
 
 interface State {
@@ -23,6 +24,7 @@ interface Action {
   setCurrentLobby: (id: string | null) => void;
   addMembers: (member: string[]) => void;
   removeMember: (member: string) => void;
+  addPoints: (member: string) => void;
 }
 
 export const useLobby = create<State & Action>((set) => ({
@@ -92,6 +94,18 @@ export const useLobby = create<State & Action>((set) => ({
     set((state) => ({
       lobbies: state.lobbies.map((lobby) =>
         lobby.id === state.currentLobby ? { ...lobby, flags } : { ...lobby },
+      ),
+    }));
+  },
+  addPoints: (member: string) => {
+    set((state) => ({
+      lobbies: state.lobbies.map((lobby) =>
+        state.currentLobby
+          ? {
+              ...lobby,
+              points: { ...lobby.points, member: lobby.points[member] + 1 },
+            }
+          : { ...lobby },
       ),
     }));
   },
